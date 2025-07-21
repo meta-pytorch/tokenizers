@@ -82,6 +82,7 @@ target_include_directories(
   tokenizers
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/pytorch/tokenizers>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third-party/sentencepiece>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third-party/sentencepiece/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third-party/re2>
@@ -190,6 +191,12 @@ install(
   PATTERN "*.h"
 )
 
+install(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third-party/sentencepiece/src/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/pytorch/tokenizers
+  FILES_MATCHING
+  PATTERN "sentencepiece_processor.h"
+)
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third-party/json/single_include/
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
