@@ -12,7 +12,6 @@
 #include <pytorch/tokenizers/regex.h>
 #include <pytorch/tokenizers/std_regex.h>
 
-#include <iostream>
 #include <memory>
 
 namespace tokenizers {
