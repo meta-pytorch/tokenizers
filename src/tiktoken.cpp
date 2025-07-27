@@ -28,7 +28,6 @@
 #include <pytorch/tokenizers/base64.h>
 #include <pytorch/tokenizers/tiktoken.h>
 #include <algorithm>
-#include <cinttypes>
 #include <fstream>
 #include <limits>
 #include <unordered_set>

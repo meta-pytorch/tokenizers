@@ -1,10 +1,4 @@
-/*
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- * All rights reserved.
- *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree.
- */
+// (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 // This file contains the implementation of create_regex with lookahead support
 
@@ -12,7 +6,6 @@
 #include <pytorch/tokenizers/regex.h>
 #include <pytorch/tokenizers/std_regex.h>
 
-#include <iostream>
 #include <memory>
 
 namespace tokenizers {
