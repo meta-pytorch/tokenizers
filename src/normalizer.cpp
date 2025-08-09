@@ -102,8 +102,9 @@ std::unique_ptr<IRegex> ReplaceNormalizer::create_regex_(
 }
 
 std::string ReplaceNormalizer::normalize(const std::string& input) const {
-  if (!regex_)
+  if (!regex_) {
     return input;
+  }
 
   std::string result = input;
   auto matches = regex_->find_all(result);
