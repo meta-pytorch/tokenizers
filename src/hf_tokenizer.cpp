@@ -138,7 +138,7 @@ Error HFTokenizer::load(const std::string& path) {
   try {
     _decoder =
         TokenDecoderConfig().parse_json(parsed_json.at("decoder")).create();
-  } catch (const json::out_of_range& e) {
+  } catch (const json::out_of_range&) {
     // No decoder specified
   }
 
