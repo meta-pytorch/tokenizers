@@ -17,6 +17,7 @@
 #include <pytorch/tokenizers/llama2c_tokenizer.h>
 #include <pytorch/tokenizers/result.h>
 #include <pytorch/tokenizers/sentencepiece.h>
+#include <pytorch/tokenizers/tekken.h>
 #include <pytorch/tokenizers/tiktoken.h>
 #include <pytorch/tokenizers/tokenizer.h>
 
@@ -253,4 +254,54 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
             return unwrap_result(self.decode(token, token));
           },
           py::arg("token"));
+
+  // Bind Tekken tokenizer
+  py::class_<Tekken, Tokenizer>(m, "Tekken")
+      .def(py::init<>())
+      .def(
+          "load",
+          [](Tekken& self, const std::string& tokenizer_path) {
+            Error error = self.load(tokenizer_path);
+            if (error != Error::Ok) {
+              throw std::runtime_error("Failed to load Tekken tokenizer");
+            }
+          },
+          py::arg("tokenizer_path"))
+      .def(
+          "encode",
+          [](const Tekken& self,
+             const std::string& input,
+             int8_t bos,
+             int8_t eos) {
+            return unwrap_result(self.encode(input, bos, eos));
+          },
+          py::arg("input"),
+          py::arg("bos") = 0,
+          py::arg("eos") = 0)
+      .def(
+          "decode",
+          [](const Tekken& self, uint64_t token) {
+            return unwrap_result(self.decode(token, token));
+          },
+          py::arg("token"))
+      .def(
+          "decode_batch",
+          [](const Tekken& self, const std::vector<uint64_t>& tokens) {
+            std::string result;
+            for (size_t i = 0; i < tokens.size(); ++i) {
+              uint64_t prev_token = (i == 0) ? 0 : tokens[i - 1];
+              auto decoded = self.decode(prev_token, tokens[i]);
+              if (decoded.error() != Error::Ok) {
+                throw std::runtime_error("Failed to decode token");
+              }
+              result += decoded.get();
+            }
+            return result;
+          },
+          py::arg("tokens"))
+      .def("vocab_size", &Tekken::vocab_size)
+      .def("bos_tok", &Tekken::bos_tok)
+      .def("eos_tok", &Tekken::eos_tok)
+      .def("is_loaded", &Tekken::is_loaded)
+      .def("get_version", &Tekken::get_version);
 }

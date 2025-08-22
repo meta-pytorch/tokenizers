@@ -65,6 +65,7 @@ set(tokenizers_source_files
     ${CMAKE_CURRENT_SOURCE_DIR}/src/re2_regex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/regex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/sentencepiece.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tekken.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tiktoken.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/token_decoder.cpp
 )
