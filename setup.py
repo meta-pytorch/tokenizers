@@ -130,7 +130,7 @@ setup(
     version="0.1.0",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pytorch-labs/tokenizers",
+    url="https://github.com/meta-pytorch/tokenizers",
     packages=find_packages(),
     ext_modules=[CMakeExtension("pytorch_tokenizers_cpp")],
     cmdclass={"build_ext": CMakeBuild},
