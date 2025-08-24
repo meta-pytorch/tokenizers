@@ -151,8 +151,9 @@ std::unique_ptr<IRegex> RegexPreTokenizer::create_regex_(
 
 std::vector<std::string> RegexPreTokenizer::pre_tokenize(
     const std::string& input) const {
-  if (!regex_)
+  if (!regex_) {
     return {};
+  }
 
   std::vector<std::string> results;
   auto matches = regex_->find_all(input);
