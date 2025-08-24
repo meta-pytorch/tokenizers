@@ -51,7 +51,7 @@ static Result<std::pair<std::string, uint64_t>> _parse(
   // Tiktoken format
   // https://github.com/openai/tiktoken/blob/main/tiktoken/load.py#L140 <base64
   // encoded token str> <rank>
-  auto pos = line.find(" ");
+  auto pos = line.find(' ');
   TK_CHECK_OR_RETURN_ERROR(
       pos != std::string::npos,
       ParseFailure,
