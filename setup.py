@@ -55,6 +55,10 @@ class CMakeBuild(build_ext):
         ]
         build_args = ["--target", "pytorch_tokenizers_cpp"]
 
+        # Use Clang for Windows builds.
+        if sys.platform == "win32":
+            cmake_args += ["-T ClangCL"]
+
         # Adding CMake arguments set as environment variable
         # (needed e.g. to build for ARM OSX on conda-forge)
         if "CMAKE_ARGS" in os.environ:
@@ -123,6 +127,15 @@ class CMakeBuild(build_ext):
         subprocess.run(
             ["cmake", "--build", "."] + build_args, cwd=build_temp, check=True
         )
+
+        if sys.platform == "win32":
+            # Setuptools seems to look for the artifact in a different location on
+            # Windows. I'm not entirely sure why... Move the artifact up one level.
+            pyd_files = list(Path(extdir).glob("*.pyd"))
+            artifact_dst_dir = Path(extdir).parent
+            for f in pyd_files:
+                dst_path = artifact_dst_dir / os.path.basename(f)
+                os.replace(f, dst_path)
 
 
 setup(
