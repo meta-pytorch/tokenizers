@@ -34,14 +34,14 @@ Error HFTokenizer::load(const std::string& path) {
   std::string model_config_json = "";
   if (fs::is_directory(path)) {
     const fs::path root(path);
-    model_json = root / "tokenizer.json";
+    model_json = (root / "tokenizer.json").string();
     if (!fs::exists(model_json)) {
       TK_LOG(Info, "no tokenizer.json found in %s", path.c_str());
       return Error::LoadFailure;
     }
     const auto model_config_json_path = root / "tokenizer_config.json";
     if (fs::exists(model_config_json_path)) {
-      model_config_json = model_config_json_path;
+      model_config_json = model_config_json_path.string();
     }
   }
 

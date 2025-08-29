@@ -23,6 +23,12 @@
 #include <pytorch/tokenizers/result.h>
 #include <pytorch/tokenizers/tokenizer.h>
 
+#ifdef _WIN32
+// ssize_t isn't available on Windows. Alias it to the Windows SSIZE_T value.
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
+
 namespace tokenizers {
 
 static constexpr int32_t kSpecialTokensSize = 256;

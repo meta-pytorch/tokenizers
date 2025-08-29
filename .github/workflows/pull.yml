@@ -34,3 +34,43 @@ jobs:
 
         # Run tests
         pytest
+ 
+  windows:
+    uses: pytorch/test-infra/.github/workflows/windows_job.yml@main
+    with:
+      runner: windows.4xlarge
+      submodules: 'recursive'
+      ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      script: |
+        conda init powershell
+        powershell -Command "& {
+          Set-PSDebug -Trace 1
+          \$ErrorActionPreference = 'Stop'
+          \$PSNativeCommandUseErrorActionPreference = \$true
+          
+          cmake -DCMAKE_BUILD_TYPE=Debug test -Bbuild/test
+          cmake --build build/test -j9 --config Debug
+          if (\$LASTEXITCODE -ne 0) {
+            Write-Host "Build was not successful. Exit code: \$LASTEXITCODE."
+            exit \$LASTEXITCODE
+          }
+
+          Push-Location build/test
+          ctest
+          if (\$LASTEXITCODE -ne 0) {
+            Write-Host "Unit tests were not successful. Exit code: \$LASTEXITCODE."
+            exit \$LASTEXITCODE
+          }
+          Pop-Location
+
+          # Install tokenizers
+          pip install . -v
+          pip install pytest blobfile transformers>=4.53.1
+
+          # Run tests
+          pytest
+          if (\$LASTEXITCODE -ne 0) {
+            Write-Host "Python tests were not successful. Exit code: \$LASTEXITCODE."
+            exit \$LASTEXITCODE
+          }
+        }"
