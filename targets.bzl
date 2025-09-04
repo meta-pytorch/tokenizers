@@ -172,6 +172,29 @@ def define_common_targets():
         platforms = PLATFORMS,
     )
 
+    runtime.cxx_library(
+        name = "tekken",
+        srcs = [
+            "src/tekken.cpp",
+        ],
+        deps = [
+            ":regex",
+        ],
+        exported_deps = [
+            ":bpe_tokenizer_base",
+            ":headers",
+        ],
+        exported_external_deps = [
+            "re2",
+            "nlohmann_json",
+        ],
+        visibility = [
+            "@EXECUTORCH_CLIENTS",
+            "//pytorch/tokenizers/...",
+        ],
+        platforms = PLATFORMS,
+    )
+
     runtime.cxx_python_extension(
         name = "pytorch_tokenizers_cpp",
         srcs = [
@@ -186,6 +209,7 @@ def define_common_targets():
             ":hf_tokenizer",
             ":llama2c_tokenizer",
             ":sentencepiece",
+            ":tekken",
             ":tiktoken",
         ],
         external_deps = [

@@ -49,6 +49,7 @@ class Tekken : public detail::BPETokenizerBase {
   };
 
   explicit Tekken();
+  ~Tekken() override = default;
 
   // Load from tekken.json file
   Error load(const std::string& tokenizer_path) override;
