@@ -21,6 +21,7 @@
 // Local
 #include "hf_tokenizer.h"
 #include "sentencepiece.h"
+#include "tekken.h"
 #include "tiktoken.h"
 
 using namespace tokenizers;
@@ -64,6 +65,8 @@ int main(int argc, char* argv[]) {
     tok_ptr.reset(new Tiktoken());
   } else if (tokenizer_type == "hf_tokenizer") {
     tok_ptr.reset(new HFTokenizer());
+  } else if (tokenizer_type == "tekken") {
+    tok_ptr.reset(new Tekken());
   } else {
     std::stringstream ss;
     ss << "ERROR: Invalid tokenizer type: " << tokenizer_type << std::endl
