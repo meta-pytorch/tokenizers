@@ -94,6 +94,15 @@ target_include_directories(
 )
 target_link_libraries(tokenizers PUBLIC sentencepiece-static re2::re2)
 
+# Link with atomic library on aarch64/arm64 systems
+# Some aarch64 systems require explicit linking with libatomic for certain atomic operations
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+  find_library(ATOMIC_LIB NAMES atomic libatomic.so libatomic.so.1)
+  if(ATOMIC_LIB)
+    target_link_libraries(tokenizers PUBLIC ${ATOMIC_LIB})
+  endif()
+endif()
+
 if(SUPPORT_REGEX_LOOKAHEAD)
   set(PCRE2_STATIC_PIC ON)
   set(PCRE2_BUILD_PCRE2_8 ON)
@@ -159,6 +168,18 @@ if(TOKENIZERS_BUILD_PYTHON)
 
   # Link with the tokenizers library
   target_link_libraries(pytorch_tokenizers_cpp PRIVATE tokenizers)
+
+  # Link with atomic library on aarch64/arm64 systems
+  # Some aarch64 systems require explicit linking with libatomic for certain atomic operations
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+    find_library(ATOMIC_LIB NAMES atomic libatomic.so libatomic.so.1)
+    if(ATOMIC_LIB)
+      target_link_libraries(pytorch_tokenizers_cpp PRIVATE ${ATOMIC_LIB})
+      message(STATUS "Found libatomic: ${ATOMIC_LIB}")
+    else()
+      message(WARNING "libatomic not found on aarch64 - build may fail")
+    endif()
+  endif()
 
   # Set properties for the Python extension
   target_compile_definitions(pytorch_tokenizers_cpp PRIVATE VERSION_INFO=${PROJECT_VERSION})
