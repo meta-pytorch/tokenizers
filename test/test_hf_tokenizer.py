@@ -48,3 +48,16 @@ class TestHfTokenizer(unittest.TestCase):
         tokens = tokenizer.encode(PROMPT)
         cpp_tokens = cpp_tokenizer.encode(PROMPT, bos=1)
         self.assertEqual(tokens, cpp_tokens)
+
+    def test_phi_4_mini(self) -> None:
+        tokenizer = AutoTokenizer.from_pretrained(
+            "software-mansion/react-native-executorch-phi-4-mini"
+        )
+        tokenizer_path = tokenizer.save_pretrained(self.temp_dir.name)[-1]
+
+        cpp_tokenizer = CppHFTokenizer()
+        cpp_tokenizer.load(tokenizer_path)
+
+        tokens = tokenizer.encode(PROMPT)
+        cpp_tokens = cpp_tokenizer.encode(PROMPT)
+        self.assertEqual(tokens, cpp_tokens)

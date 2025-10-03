@@ -12,6 +12,9 @@ def define_common_targets():
         exported_headers = subdir_glob([
             ("llama.cpp-unicode/include", "*.h"),
         ]),
+        compiler_flags = [
+            "-Wno-error=deprecated-declarations",
+        ],
         visibility = ["@EXECUTORCH_CLIENTS", "//pytorch/tokenizers/..."],
     )
 

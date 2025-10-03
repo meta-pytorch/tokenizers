@@ -56,7 +56,7 @@ Error HFTokenizer::load(const std::string& path) {
   json parsed_json;
   try {
     parsed_json = json::parse(contents);
-  } catch (const json::exception& e) {
+  } catch (const std::exception& e) {
     TK_LOG(Error, "Error parsing json file: %s", e.what());
     return Error::LoadFailure;
   }
@@ -76,7 +76,7 @@ Error HFTokenizer::load(const std::string& path) {
 
     // Store for future use.
     special_token_map_.emplace(std::move(special_token_map));
-  } catch (const json::out_of_range& e) {
+  } catch (const std::exception& e) {
     TK_LOG(Info, "Could not parse special tokens: %s", e.what());
     return Error::LoadFailure;
   }
@@ -96,7 +96,7 @@ Error HFTokenizer::load(const std::string& path) {
 
     auto token_map = TK_UNWRAP(detail::build_token_map(std::move(token_pairs)));
     token_map_.emplace(std::move(token_map));
-  } catch (const json::out_of_range& e) {
+  } catch (const std::exception& e) {
     TK_LOG(Info, "Could not parse tokens: %s", e.what());
     return Error::LoadFailure;
   }
@@ -114,7 +114,7 @@ Error HFTokenizer::load(const std::string& path) {
     } else {
       TK_LOG(Info, "Normalizer field is null, skipping");
     }
-  } catch (const json::out_of_range& e) {
+  } catch (const std::exception& e) {
     // No "Normalizer" field found
     TK_LOG(
         Info,
@@ -129,7 +129,7 @@ Error HFTokenizer::load(const std::string& path) {
                         .parse_json(parsed_json.at("pre_tokenizer"))
                         .create();
     TK_LOG(Info, "Pretokenizer set up");
-  } catch (const json::out_of_range& e) {
+  } catch (const std::exception& e) {
     TK_LOG(Info, "Could not parse pre_tokenizer: %s", e.what());
     return Error::LoadFailure;
   }
@@ -138,7 +138,7 @@ Error HFTokenizer::load(const std::string& path) {
   try {
     _decoder =
         TokenDecoderConfig().parse_json(parsed_json.at("decoder")).create();
-  } catch (const json::out_of_range&) {
+  } catch (const std::exception&) {
     // No decoder specified
   }
 
@@ -192,7 +192,7 @@ Error HFTokenizer::load(const std::string& path) {
         "Built merge ranks map with %" PRId64 " entries",
         static_cast<int64_t>(merge_ranks.size()));
     merge_ranks_.emplace(std::move(merge_ranks));
-  } catch (const json::out_of_range& e) {
+  } catch (const std::exception& e) {
     TK_LOG(Error, "Could not parse merges: %s", e.what());
     return Error::LoadFailure;
   }
@@ -211,7 +211,7 @@ Error HFTokenizer::load(const std::string& path) {
     json parsed_config_json;
     try {
       parsed_config_json = json::parse(config_contents);
-    } catch (const json::exception& e) {
+    } catch (const std::exception& e) {
       TK_LOG(Error, "Error parsing model config json json file: %s", e.what());
       return Error::LoadFailure;
     }
@@ -239,7 +239,7 @@ Error HFTokenizer::load(const std::string& path) {
       }
       bos_tok_ = *bos_res;
       eos_tok_ = *eos_res;
-    } catch (const json::out_of_range& e) {
+    } catch (const std::exception& e) {
       TK_LOG(Error, "Could not eos/bos from tokenizer config: %s", e.what());
       return Error::LoadFailure;
     }
