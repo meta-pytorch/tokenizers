@@ -124,7 +124,11 @@ TEST_F(TiktokenTest, ConstructionWithInvalidBOSIndex) {
               std::vector<std::string>{"<|end_of_text|>"}),
           1,
           0),
+#if !GTEST_OS_WINDOWS
       ::testing::KilledBySignal(SIGABRT),
+#else
+      [](int exit_code) { return exit_code != 0; },
+#endif
       "");
 #endif
 }
@@ -139,7 +143,11 @@ TEST_F(TiktokenTest, ConstructionWithInvalidEOSIndex) {
               std::vector<std::string>{"<|begin_of_text|>"}),
           0,
           1),
+#if !GTEST_OS_WINDOWS
       ::testing::KilledBySignal(SIGABRT),
+#else
+      [](int exit_code) { return exit_code != 0; },
+#endif
       "");
 #endif
 }

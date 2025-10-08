@@ -30,9 +30,6 @@ class CMakeBuild(build_ext):
     def build_extension(self, ext):  # noqa C901
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
 
-        # Ensure the extension goes into the pytorch_tokenizers package directory
-        extdir = os.path.join(extdir, "pytorch_tokenizers")
-
         # Required for auto-detection & inclusion of auxiliary "native" libs
         if not extdir.endswith(os.path.sep):
             extdir += os.path.sep
@@ -54,6 +51,10 @@ class CMakeBuild(build_ext):
             "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
         ]
         build_args = ["--target", "pytorch_tokenizers_cpp"]
+
+        # Use Clang for Windows builds.
+        if sys.platform == "win32":
+            cmake_args += ["-T ClangCL"]
 
         # Adding CMake arguments set as environment variable
         # (needed e.g. to build for ARM OSX on conda-forge)
@@ -132,7 +133,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/meta-pytorch/tokenizers",
     packages=find_packages(),
-    ext_modules=[CMakeExtension("pytorch_tokenizers_cpp")],
+    ext_modules=[CMakeExtension("pytorch_tokenizers.pytorch_tokenizers_cpp")],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
     python_requires=">=3.10",
