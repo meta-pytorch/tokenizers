@@ -144,44 +144,10 @@ PreTokenizerConfig& PreTokenizerConfig::parse_json(const json& json_config) {
 
 // RegexPreTokenizer ///////////////////////////////////////////////////////////
 
-namespace {
-
-// Make Hugging Face Split patterns RE2-compatible by:
-// 1) removing the negative look-ahead "\s+(?!\S)" (→ "\s+$")
-// 2) expanding the inline case-insensitive contractions
-//    "(?i:'s|'t|'re|'ve|'m|'ll|'d)" into explicit alternations.
-static void replace_all_in_place(
-    std::string& input,
-    const std::string& needle,
-    const std::string& replacement) {
-  if (needle.empty()) {
-    return;
-  }
-  size_t search_pos = 0;
-  while ((search_pos = input.find(needle, search_pos)) != std::string::npos) {
-    input.replace(search_pos, needle.size(), replacement);
-    search_pos += replacement.size();
-  }
-}
-
-static std::string make_re2_compatible(std::string pattern) {
-  const std::string lookahead_trailing_space = R"(\s+(?!\S))";
-  const std::string trailing_space_replacement = R"(\s+$)";
-  replace_all_in_place(
-      pattern, lookahead_trailing_space, trailing_space_replacement);
-  const std::string ci_contractions = R"((?i:'s|'t|'re|'ve|'m|'ll|'d))";
-  const std::string contractions_expanded =
-      "(?:'s|'S|'t|'T|'re|'RE|'ve|'VE|'m|'M|'ll|'LL|'d|'D)";
-  replace_all_in_place(pattern, ci_contractions, contractions_expanded);
-  return pattern;
-}
-
-} // namespace
-
 std::unique_ptr<IRegex> RegexPreTokenizer::create_regex_(
     const std::string& pattern) {
   assert(!pattern.empty());
-  return TK_UNWRAP_THROW(create_regex(make_re2_compatible(pattern)));
+  return TK_UNWRAP_THROW(create_regex(pattern));
 }
 
 std::vector<std::string> RegexPreTokenizer::pre_tokenize(
