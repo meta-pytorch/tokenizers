@@ -9,6 +9,7 @@
 
 // Local
 #include <pytorch/tokenizers/normalizer.h>
+#include <pytorch/tokenizers/regex.h>
 
 // Third Party
 #include <unicode.h>
