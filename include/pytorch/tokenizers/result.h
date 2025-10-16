@@ -184,3 +184,73 @@ T* Result<T>::operator->() {
 }
 
 } // namespace tokenizers
+
+/**
+ * Unwraps a Result<T> value, throwing a runtime_error if the result contains an
+ * error.
+ *
+ * @param[in] result__ The Result<T> to unwrap
+ */
+#define TK_UNWRAP_THROW(result__)                                     \
+  ({                                                                  \
+    auto unwrap_result__ = (result__);                                \
+    if (!unwrap_result__.ok()) {                                      \
+      throw std::runtime_error(                                       \
+          "Error: " +                                                 \
+          std::to_string(static_cast<int>(unwrap_result__.error()))); \
+    }                                                                 \
+    std::move(unwrap_result__.get());                                 \
+  })
+
+/**
+ * Unwrap a Result to obtain its value. If the Result contains an error,
+ * propogate the error via trivial function return.
+ *
+ * Note: A function using TK_UNWRAP should itself return a Result or Error.
+ *
+ * @param[in] result__ Expression yielding the result to unwrap.
+ * @param[in] ... Optional format string for the log error message and its
+ * arguments.
+ */
+#define TK_UNWRAP(result__, ...) TK_INTERNAL_UNWRAP(result__, ##__VA_ARGS__)
+
+// Internal only: Use TK_UNWRAP() instead.
+#define TK_INTERNAL_UNWRAP(...)                                         \
+  TK_INTERNAL_UNWRAP_SELECT(__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1) \
+  (__VA_ARGS__)
+
+// Internal only: Use TK_UNWRAP() instead.
+#define TK_INTERNAL_UNWRAP_SELECT(                   \
+    _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, N, ...) \
+  TK_INTERNAL_UNWRAP_##N
+
+// Internal only: Use TK_UNWRAP() instead.
+#define TK_INTERNAL_UNWRAP_1(result__) \
+  ({                                   \
+    auto et_result__ = (result__);     \
+    if (!et_result__.ok()) {           \
+      return et_result__.error();      \
+    }                                  \
+    std::move(*et_result__);           \
+  })
+
+// Internal only: Use TK_UNWRAP() instead.
+#define TK_INTERNAL_UNWRAP_2(result__, message__, ...) \
+  ({                                                   \
+    auto et_result__ = (result__);                     \
+    if (!et_result__.ok()) {                           \
+      TK_LOG(Error, message__, ##__VA_ARGS__);         \
+      return et_result__.error();                      \
+    }                                                  \
+    std::move(*et_result__);                           \
+  })
+
+// Internal only: Use TK_UNWRAP() instead.
+#define TK_INTERNAL_UNWRAP_3 TK_INTERNAL_UNWRAP_2
+#define TK_INTERNAL_UNWRAP_4 TK_INTERNAL_UNWRAP_2
+#define TK_INTERNAL_UNWRAP_5 TK_INTERNAL_UNWRAP_2
+#define TK_INTERNAL_UNWRAP_6 TK_INTERNAL_UNWRAP_2
+#define TK_INTERNAL_UNWRAP_7 TK_INTERNAL_UNWRAP_2
+#define TK_INTERNAL_UNWRAP_8 TK_INTERNAL_UNWRAP_2
+#define TK_INTERNAL_UNWRAP_9 TK_INTERNAL_UNWRAP_2
+#define TK_INTERNAL_UNWRAP_10 TK_INTERNAL_UNWRAP_2
