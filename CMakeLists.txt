@@ -23,6 +23,24 @@ option(SUPPORT_REGEX_LOOKAHEAD
        "Support regex lookahead patterns (requires PCRE2)" OFF
 )
 
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  set(_is_build_type_release ON)
+  set(_is_build_type_debug OFF)
+else()
+  set(_is_build_type_release OFF)
+  set(_is_build_type_debug ON)
+endif()
+
+option(TOKENIZERS_ENABLE_LOGGING "Build with TK_LOG_ENABLED" ${_is_build_type_debug})
+
+# Connect with ExecuTorch logging options
+if(DEFINED EXECUTORCH_ENABLE_LOGGING)
+  set(TOKENIZERS_ENABLE_LOGGING ${EXECUTORCH_ENABLE_LOGGING} CACHE BOOL "Build with TK_LOG_ENABLED")
+endif()
+if(DEFINED EXECUTORCH_LOG_LEVEL)
+  set(TOKENIZERS_LOG_LEVEL ${EXECUTORCH_LOG_LEVEL} CACHE STRING "Build with the given TK_LOG_LEVEL value")
+endif()
+
 # Include CMakePackageConfigHelpers for configure_package_config_file
 include(CMakePackageConfigHelpers)
 include(Utils.cmake)
@@ -93,6 +111,12 @@ target_include_directories(
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third-party/llama.cpp-unicode/include>
 )
 target_link_libraries(tokenizers PUBLIC sentencepiece-static re2::re2)
+
+# Enable logging
+if(TOKENIZERS_ENABLE_LOGGING)
+  target_compile_definitions(tokenizers PUBLIC TK_LOG_ENABLED)
+endif()
+target_compile_definitions(tokenizers PUBLIC TK_LOG_LEVEL=${TOKENIZERS_LOG_LEVEL})
 
 if(SUPPORT_REGEX_LOOKAHEAD)
   set(PCRE2_STATIC_PIC ON)
