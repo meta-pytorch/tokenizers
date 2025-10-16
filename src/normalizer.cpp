@@ -17,6 +17,9 @@
 #include <algorithm>
 #include <iterator>
 #include <utility>
+#include <memory>
+#include <vector>
+#include <string>
 
 // Third Party
 #include <nlohmann/json.hpp>
@@ -100,9 +103,8 @@ std::unique_ptr<IRegex> ReplaceNormalizer::create_regex_(
   assert(!pattern.empty());
   auto regex_result = create_regex(pattern);
   if (!regex_result.ok()) {
-    throw std::runtime_error(
-        "Error: " +
-        std::to_string(static_cast<int>(regex_result.error())));
+    std::std::string error = "Error: " + std::to_string(static_cast<int>(regex_result.error()));
+    throw std::runtime_error(error);
   }
   return std::move(regex_result.get());
 }
