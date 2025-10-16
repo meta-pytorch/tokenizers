@@ -223,8 +223,11 @@ Result<std::vector<uint64_t>> BPETokenizerBase::encode(
   if (!initialized_) {
     return Error::Uninitialized;
   }
-  auto res =
-      TK_UNWRAP(encode_with_special_token_(text, *special_token_map_)).first;
+  auto encode_result = encode_with_special_token_(text, *special_token_map_);
+  if (!encode_result.ok()) {
+    return encode_result.error();
+  }
+  auto res = std::move((*encode_result).first);
   for (auto i = 0; i < bos; ++i) {
     res.insert(res.begin(), bos_tok_);
   }

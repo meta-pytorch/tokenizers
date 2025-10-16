@@ -43,7 +43,11 @@ Error Tekken::_encode(
     }
 
     // Fall back to BPE encoding
-    auto tokens = TK_UNWRAP(byte_pair_encode_(matched_text, *token_map_));
+    auto tokens_result = byte_pair_encode_(matched_text, *token_map_);
+    if (!tokens_result.ok()) {
+      return tokens_result.error();
+    }
+    auto tokens = std::move(*tokens_result);
     last_piece_token_len = tokens.size();
     ret.insert(ret.end(), tokens.begin(), tokens.end());
   }
@@ -104,7 +108,11 @@ Error Tekken::load(const std::string& tokenizer_path) {
   }
 
   // Parse configuration
-  auto config = TK_UNWRAP(_parse_config(parsed_json["config"]));
+  auto config_result = _parse_config(parsed_json["config"]);
+  if (!config_result.ok()) {
+    return config_result.error();
+  }
+  auto config = std::move(*config_result);
   _pattern = config.pattern;
   _num_special_tokens = config.default_num_special_tokens;
   _version = config.version;
@@ -138,8 +146,11 @@ Error Tekken::load(const std::string& tokenizer_path) {
   // Load vocabulary (exclude special tokens from vocab size)
   size_t vocab_size = config.default_vocab_size - _num_special_tokens;
   TK_LOG(Info, "Loading %zu vocabulary tokens", vocab_size);
-  token_map_.emplace(
-      TK_UNWRAP(_load_vocab_from_json(parsed_json["vocab"], vocab_size)));
+  auto token_map_result = _load_vocab_from_json(parsed_json["vocab"], vocab_size);
+  if (!token_map_result.ok()) {
+    return token_map_result.error();
+  }
+  token_map_.emplace(std::move(*token_map_result));
 
   // Set up special tokens
   std::vector<std::string> special_token_strings;
@@ -154,9 +165,16 @@ Error Tekken::load(const std::string& tokenizer_path) {
   special_token_map_.emplace(TokenMap(special_token_pairs));
 
   // Initialize regex with the pattern from config
-  _regex = TK_UNWRAP(create_regex(_pattern));
-  special_token_regex_ =
-      TK_UNWRAP(build_special_token_regex(*special_token_map_));
+  auto regex_result = create_regex(_pattern);
+  if (!regex_result.ok()) {
+    return regex_result.error();
+  }
+  _regex = std::move(*regex_result);
+  auto special_token_regex_result = build_special_token_regex(*special_token_map_);
+  if (!special_token_regex_result.ok()) {
+    return special_token_regex_result.error();
+  }
+  special_token_regex_ = std::move(*special_token_regex_result);
 
   // Set vocab size and special token indices
   vocab_size_ = token_map_->size() + special_token_map_->size();

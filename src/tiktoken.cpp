@@ -58,7 +58,11 @@ static Result<std::pair<std::string, uint64_t>> _parse(
       "invalid tiktoken line: %s",
       line.c_str());
 
-  auto token = TK_UNWRAP(base64::decode({line.data(), pos}));
+  auto token_result = base64::decode({line.data(), pos});
+  if (!token_result.ok()) {
+    return token_result.error();
+  }
+  auto token = std::move(*token_result);
   uint64_t rank = 0;
   try {
     rank = std::stoul(line.substr(pos + 1));
@@ -83,7 +87,11 @@ static Result<TokenMap> _load_token_map(const std::string& path) {
   std::vector<std::pair<std::string, uint64_t>> pairs;
   std::string line;
   while (std::getline(file, line)) {
-    auto [token, rank] = TK_UNWRAP(_parse(line));
+    auto parse_result = _parse(line);
+    if (!parse_result.ok()) {
+      return parse_result.error();
+    }
+    auto [token, rank] = std::move(*parse_result);
     pairs.emplace_back(std::move(token), rank);
   }
 
@@ -110,7 +118,11 @@ Error Tiktoken::_encode(
       ret.push_back(*result);
       continue;
     }
-    auto tokens = TK_UNWRAP(byte_pair_encode_(matched_text, *token_map_));
+    auto tokens_result = byte_pair_encode_(matched_text, *token_map_);
+    if (!tokens_result.ok()) {
+      return tokens_result.error();
+    }
+    auto tokens = std::move(*tokens_result);
     last_piece_token_len = tokens.size();
     ret.insert(ret.end(), tokens.begin(), tokens.end());
   }
@@ -125,7 +137,11 @@ void Tiktoken::_decode(const std::string& input, std::string& ret) const {
 // -------------------------public method start-------------------------------
 
 Error Tiktoken::load(const std::string& path) {
-  token_map_.emplace(TK_UNWRAP(_load_token_map(path)));
+  auto token_map_result = _load_token_map(path);
+  if (!token_map_result.ok()) {
+    return token_map_result.error();
+  }
+  token_map_.emplace(std::move(*token_map_result));
 
   std::vector<std::pair<std::string, uint64_t>> special_token_map;
   for (std::size_t i = 0; i < _special_tokens->size(); ++i) {
@@ -135,9 +151,16 @@ Error Tiktoken::load(const std::string& path) {
 
   special_token_map_.emplace(TokenMap(special_token_map));
 
-  _regex = TK_UNWRAP(_create_regex(_pattern));
-  special_token_regex_ =
-      TK_UNWRAP(detail::build_special_token_regex(TokenMap(special_token_map)));
+  auto regex_result = _create_regex(_pattern);
+  if (!regex_result.ok()) {
+    return regex_result.error();
+  }
+  _regex = std::move(*regex_result);
+  auto special_token_regex_result = detail::build_special_token_regex(TokenMap(special_token_map));
+  if (!special_token_regex_result.ok()) {
+    return special_token_regex_result.error();
+  }
+  special_token_regex_ = std::move(*special_token_regex_result);
 
   // initialize vocab_size, bos_tok, eos_tok
   vocab_size_ = token_map_->size() + special_token_map_->size();

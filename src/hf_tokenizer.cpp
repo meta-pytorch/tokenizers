@@ -65,14 +65,21 @@ Error HFTokenizer::load(const std::string& path) {
   try {
     std::vector<std::pair<std::string, std::uint64_t>> special_token_pairs;
     const auto& special_tokens = parsed_json.at("added_tokens");
-    auto special_token_map = TK_UNWRAP(detail::build_token_map(
+    auto special_token_map_result = detail::build_token_map(
         special_tokens,
         [](const auto& it) -> std::string { return it.at("content"); },
-        [](const auto& it) -> std::uint64_t { return it.at("id"); }));
+        [](const auto& it) -> std::uint64_t { return it.at("id"); });
+    if (!special_token_map_result.ok()) {
+      return special_token_map_result.error();
+    }
+    auto special_token_map = std::move(*special_token_map_result);
 
     // Create special token regex to help later with encoding.
-    special_token_regex_ =
-        TK_UNWRAP(detail::build_special_token_regex(special_token_map));
+    auto special_token_regex_result = detail::build_special_token_regex(special_token_map);
+    if (!special_token_regex_result.ok()) {
+      return special_token_regex_result.error();
+    }
+    special_token_regex_ = std::move(*special_token_regex_result);
 
     // Store for future use.
     special_token_map_.emplace(std::move(special_token_map));
@@ -94,7 +101,11 @@ Error HFTokenizer::load(const std::string& path) {
       }
     }
 
-    auto token_map = TK_UNWRAP(detail::build_token_map(std::move(token_pairs)));
+    auto token_map_result = detail::build_token_map(std::move(token_pairs));
+    if (!token_map_result.ok()) {
+      return token_map_result.error();
+    }
+    auto token_map = std::move(*token_map_result);
     token_map_.emplace(std::move(token_map));
   } catch (const std::exception& e) {
     TK_LOG(Info, "Could not parse tokens: %s", e.what());
@@ -185,8 +196,11 @@ Error HFTokenizer::load(const std::string& path) {
         static_cast<int64_t>(merge_map_->size()));
 
     // Pre-compute merge ranks for efficient BPE encoding
-    auto merge_ranks =
-        TK_UNWRAP(detail::build_merge_ranks_map(*merge_map_, *token_map_));
+    auto merge_ranks_result = detail::build_merge_ranks_map(*merge_map_, *token_map_);
+    if (!merge_ranks_result.ok()) {
+      return merge_ranks_result.error();
+    }
+    auto merge_ranks = std::move(*merge_ranks_result);
     TK_LOG(
         Info,
         "Built merge ranks map with %" PRId64 " entries",
@@ -335,7 +349,11 @@ Error HFTokenizer::_encode(
       ret.push_back(*result);
       continue;
     }
-    auto tokens = TK_UNWRAP(byte_pair_encode_(piece, *token_map_));
+    auto tokens_result = byte_pair_encode_(piece, *token_map_);
+    if (!tokens_result.ok()) {
+      return tokens_result.error();
+    }
+    auto tokens = std::move(*tokens_result);
 
     last_piece_token_len = tokens.size();
     ret.insert(ret.end(), tokens.begin(), tokens.end());

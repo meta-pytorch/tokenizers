@@ -147,7 +147,13 @@ PreTokenizerConfig& PreTokenizerConfig::parse_json(const json& json_config) {
 std::unique_ptr<IRegex> RegexPreTokenizer::create_regex_(
     const std::string& pattern) {
   assert(!pattern.empty());
-  return TK_UNWRAP_THROW(create_regex(pattern));
+  auto regex_result = create_regex(pattern);
+  if (!regex_result.ok()) {
+    throw std::runtime_error(
+        "Error: " +
+        std::to_string(static_cast<int>(regex_result.error())));
+  }
+  return std::move(regex_result.get());
 }
 
 std::vector<std::string> RegexPreTokenizer::pre_tokenize(
