@@ -122,7 +122,8 @@ inline Result<std::unique_ptr<IRegex>> build_special_token_regex(
   if (special_pattern.empty()) {
     return static_cast<std::unique_ptr<IRegex>>(nullptr);
   }
-  return create_regex(special_pattern);
+  // Wrap pattern in parentheses for proper grouping
+  return create_regex("(" + special_pattern + ")");
 }
 
 class BPETokenizerBase : public Tokenizer {
