@@ -9,6 +9,7 @@
 
 // Local
 #include <pytorch/tokenizers/normalizer.h>
+#include <pytorch/tokenizers/regex.h>
 
 // Third Party
 #include <unicode.h>
@@ -16,7 +17,10 @@
 // Standard
 #include <algorithm>
 #include <iterator>
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 // Third Party
 #include <nlohmann/json.hpp>
@@ -98,7 +102,13 @@ NormalizerConfig& NormalizerConfig::parse_json(const json& json_config) {
 std::unique_ptr<IRegex> ReplaceNormalizer::create_regex_(
     const std::string& pattern) {
   assert(!pattern.empty());
-  return TK_UNWRAP_THROW(create_regex(pattern));
+  auto regex_result = create_regex(pattern);
+  if (!regex_result.ok()) {
+    std::string error =
+        "Error: " + std::to_string(static_cast<int>(regex_result.error()));
+    throw std::runtime_error(error);
+  }
+  return std::move(regex_result.get());
 }
 
 std::string ReplaceNormalizer::normalize(const std::string& input) const {
