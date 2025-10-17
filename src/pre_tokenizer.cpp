@@ -150,8 +150,7 @@ std::unique_ptr<IRegex> RegexPreTokenizer::create_regex_(
   auto regex_result = create_regex(pattern);
   if (!regex_result.ok()) {
     throw std::runtime_error(
-        "Error: " +
-        std::to_string(static_cast<int>(regex_result.error())));
+        "Error: " + std::to_string(static_cast<int>(regex_result.error())));
   }
   return std::move(regex_result.get());
 }

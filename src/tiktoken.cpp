@@ -156,7 +156,8 @@ Error Tiktoken::load(const std::string& path) {
     return regex_result.error();
   }
   _regex = std::move(*regex_result);
-  auto special_token_regex_result = detail::build_special_token_regex(TokenMap(special_token_map));
+  auto special_token_regex_result =
+      detail::build_special_token_regex(TokenMap(special_token_map));
   if (!special_token_regex_result.ok()) {
     return special_token_regex_result.error();
   }
