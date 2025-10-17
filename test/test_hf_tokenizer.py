@@ -49,6 +49,26 @@ class TestHfTokenizer(unittest.TestCase):
         cpp_tokens = cpp_tokenizer.encode(PROMPT, bos=1)
         self.assertEqual(tokens, cpp_tokens)
 
+    def test_llama3_2_1b_special_toks(self) -> None:
+        tokenizer = AutoTokenizer.from_pretrained("unsloth/Llama-3.2-1B-Instruct")
+        tokenizer.save_pretrained(self.temp_dir.name)
+
+        cpp_tokenizer = CppHFTokenizer()
+        cpp_tokenizer.load(self.temp_dir.name)
+
+        tokens = tokenizer.encode(PROMPT)
+        cpp_tokens = cpp_tokenizer.encode(PROMPT, bos=1)
+        self.assertEqual(tokens, cpp_tokens)
+
+        bos_id = tokenizer.convert_tokens_to_ids(
+            tokenizer.special_tokens_map["bos_token"]
+        )
+        eos_id = tokenizer.convert_tokens_to_ids(
+            tokenizer.special_tokens_map["eos_token"]
+        )
+        self.assertEqual(cpp_tokenizer.bos_tok(), bos_id)
+        self.assertEqual(cpp_tokenizer.eos_tok(), eos_id)
+
     def test_phi_4_mini(self) -> None:
         tokenizer = AutoTokenizer.from_pretrained(
             "software-mansion/react-native-executorch-phi-4-mini"
