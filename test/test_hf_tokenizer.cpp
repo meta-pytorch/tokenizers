@@ -44,6 +44,21 @@ TEST(HFTokenizerTest, TestLoadInvalidPath) {
   EXPECT_EQ(error, Error::LoadFailure);
 }
 
+TEST(HFTokenizerTest, TestSpecialTokensMap) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("hf_tokenizer_dir/");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  // Verify bos_token is loaded from special_tokens_map.json
+  auto bos_token_id = tokenizer.bos_tok();
+  EXPECT_EQ(bos_token_id, 128000); // <|begin_of_text|>
+
+  // Verify eos_token is loaded from special_tokens_map.json
+  auto eos_token_id = tokenizer.eos_tok();
+  EXPECT_EQ(eos_token_id, 128009); // <|eot_id|>
+}
+
 TEST(HFTokenizerTest, TestEncode) {
   HFTokenizer tokenizer;
   auto path = _get_resource_path("test_hf_tokenizer.json");
