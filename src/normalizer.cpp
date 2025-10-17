@@ -9,7 +9,6 @@
 
 // Local
 #include <pytorch/tokenizers/normalizer.h>
-#include <pytorch/tokenizers/regex.h>
 
 // Third Party
 #include <unicode.h>
@@ -17,10 +16,7 @@
 // Standard
 #include <algorithm>
 #include <iterator>
-#include <memory>
-#include <string>
 #include <utility>
-#include <vector>
 
 // Third Party
 #include <nlohmann/json.hpp>
@@ -104,9 +100,8 @@ std::unique_ptr<IRegex> ReplaceNormalizer::create_regex_(
   assert(!pattern.empty());
   auto regex_result = create_regex(pattern);
   if (!regex_result.ok()) {
-    std::string error =
-        "Error: " + std::to_string(static_cast<int>(regex_result.error()));
-    throw std::runtime_error(error);
+    throw std::runtime_error(
+        "Error: " + std::to_string(static_cast<int>(regex_result.error())));
   }
   return std::move(regex_result.get());
 }
