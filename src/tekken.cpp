@@ -146,7 +146,8 @@ Error Tekken::load(const std::string& tokenizer_path) {
   // Load vocabulary (exclude special tokens from vocab size)
   size_t vocab_size = config.default_vocab_size - _num_special_tokens;
   TK_LOG(Info, "Loading %zu vocabulary tokens", vocab_size);
-  auto token_map_result = _load_vocab_from_json(parsed_json["vocab"], vocab_size);
+  auto token_map_result =
+      _load_vocab_from_json(parsed_json["vocab"], vocab_size);
   if (!token_map_result.ok()) {
     return token_map_result.error();
   }
@@ -170,7 +171,8 @@ Error Tekken::load(const std::string& tokenizer_path) {
     return regex_result.error();
   }
   _regex = std::move(*regex_result);
-  auto special_token_regex_result = build_special_token_regex(*special_token_map_);
+  auto special_token_regex_result =
+      build_special_token_regex(*special_token_map_);
   if (!special_token_regex_result.ok()) {
     return special_token_regex_result.error();
   }

@@ -75,7 +75,8 @@ Error HFTokenizer::load(const std::string& path) {
     auto special_token_map = std::move(*special_token_map_result);
 
     // Create special token regex to help later with encoding.
-    auto special_token_regex_result = detail::build_special_token_regex(special_token_map);
+    auto special_token_regex_result =
+        detail::build_special_token_regex(special_token_map);
     if (!special_token_regex_result.ok()) {
       return special_token_regex_result.error();
     }
@@ -196,7 +197,8 @@ Error HFTokenizer::load(const std::string& path) {
         static_cast<int64_t>(merge_map_->size()));
 
     // Pre-compute merge ranks for efficient BPE encoding
-    auto merge_ranks_result = detail::build_merge_ranks_map(*merge_map_, *token_map_);
+    auto merge_ranks_result =
+        detail::build_merge_ranks_map(*merge_map_, *token_map_);
     if (!merge_ranks_result.ok()) {
       return merge_ranks_result.error();
     }
