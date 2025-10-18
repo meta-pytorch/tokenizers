@@ -13,8 +13,14 @@
 
 // Standard
 #include <algorithm>
+#include <cassert>
+#include <cstddef>
 #include <iterator>
+#include <memory>
+#include <stdexcept>
+#include <string>
 #include <utility>
+#include <vector>
 
 // Third Party
 #include <nlohmann/json.hpp>
@@ -78,7 +84,7 @@ PreTokenizer::Ptr PreTokenizerConfig::create() const {
     return PreTokenizer::Ptr(new ByteLevelPreTokenizer());
   }
   if (type == "Sequence") {
-    if (!pretokenizers or pretokenizers->empty()) {
+    if (!pretokenizers || pretokenizers->empty()) {
       throw std::runtime_error(
           "Missing pretokenizers for PreTokenizer of type Sequence");
     }
