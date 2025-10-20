@@ -3,7 +3,7 @@ C++ implementations for various tokenizers (sentencepiece, tiktoken etc). Useful
 
 ## Installation (from source)
 ```
-git@github.com:meta-pytorch/tokenizers.git
+git clone git@github.com:meta-pytorch/tokenizers.git
 cd ~/tokenizers
 git submodule update --init --recursive
 pip install -e .
