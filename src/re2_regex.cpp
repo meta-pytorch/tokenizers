@@ -19,9 +19,10 @@ Error Re2Regex::compile(const std::string& pattern) {
   if (regex_->ok()) {
     return Error::Ok;
   } else {
+    // It should log using Error level but it's too confusing.
     TK_LOG(
-        Error,
-        "Failed to compile regex: %s, error: %s",
+        Info,
+        "Re2 failed to compile regex: %s, error: %s\nThis may be ok if a fallback regex is used.",
         pattern.c_str(),
         regex_->error().c_str());
     return Error::RegexFailure;

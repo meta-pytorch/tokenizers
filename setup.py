@@ -10,10 +10,12 @@ import os
 import re
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
+from setuptools.command.build_py import build_py as build_py_orig
 
 # Read the README file
 with open("README.md", "r") as f:
@@ -126,19 +128,52 @@ class CMakeBuild(build_ext):
         )
 
 
+class BuildPy(build_py_orig):
+    """Ensure header files are copied into the package during build."""
+
+    def run(self):
+        super().run()
+        headers_src = Path("include")
+        if not headers_src.exists():
+            return
+
+        headers_dst = Path(self.build_lib) / "pytorch_tokenizers" / "include"
+        for file_path in headers_src.rglob("*"):
+            if file_path.is_file():
+                destination = headers_dst / file_path.relative_to(headers_src)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(file_path, destination)
+
+
 setup(
     name="pytorch-tokenizers",
-    version="0.1.0",
+    version="1.0.1",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/meta-pytorch/tokenizers",
     packages=find_packages(),
+    include_package_data=True,
+    package_data={
+        "pytorch_tokenizers": [
+            "include/*.h",
+            "include/**/*.h",
+            "include/*.hpp",
+            "include/**/*.hpp",
+        ]
+    },
     ext_modules=[CMakeExtension("pytorch_tokenizers.pytorch_tokenizers_cpp")],
-    cmdclass={"build_ext": CMakeBuild},
+    cmdclass={
+        "build_ext": CMakeBuild,
+        "build_py": BuildPy,
+    },
     zip_safe=False,
     python_requires=">=3.10",
     install_requires=[
         "pybind11>=2.6.0",
+        "sentencepiece",
+        "mistral-common",
+        "tokenizers",
+        "tiktoken",
     ],
     setup_requires=[
         "pybind11>=2.6.0",
@@ -150,8 +185,6 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
