@@ -8,9 +8,9 @@
 
 import os
 import re
+import shutil
 import subprocess
 import sys
-import shutil
 from pathlib import Path
 
 from setuptools import Extension, find_packages, setup
@@ -126,7 +126,9 @@ class CMakeBuild(build_ext):
             ["cmake", ext.sourcedir] + cmake_args, cwd=build_temp, check=True
         )
         subprocess.run(
-            ["cmake", "--build", "."] + build_args + build_tool_args, cwd=build_temp, check=True
+            ["cmake", "--build", "."] + build_args + build_tool_args,
+            cwd=build_temp,
+            check=True,
         )
 
 
