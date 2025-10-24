@@ -53,6 +53,7 @@ class CMakeBuild(build_ext):
             "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
         ]
         build_args = ["--target", "pytorch_tokenizers_cpp"]
+        build_tool_args: list[str] = []
 
         # Use Clang for Windows builds.
         if sys.platform == "win32":
@@ -82,6 +83,7 @@ class CMakeBuild(build_ext):
                     pass
 
         else:
+            build_tool_args = ["--", "/p:TrackFileAccess=false"]
             # Single config generators are handled "normally"
             single_config = any(x in cmake_generator for x in {"NMake", "Ninja"})
 
@@ -124,7 +126,7 @@ class CMakeBuild(build_ext):
             ["cmake", ext.sourcedir] + cmake_args, cwd=build_temp, check=True
         )
         subprocess.run(
-            ["cmake", "--build", "."] + build_args, cwd=build_temp, check=True
+            ["cmake", "--build", "."] + build_args + build_tool_args, cwd=build_temp, check=True
         )
 
 
