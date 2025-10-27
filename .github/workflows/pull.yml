@@ -48,13 +48,6 @@ jobs:
           \$ErrorActionPreference = 'Stop'
           \$PSNativeCommandUseErrorActionPreference = \$true
 
-          # Create a symbolic link to work around path length limitations. This gives a much shorter
-          # path, as the default checkout directory is deeply nested.
-          \$workingDir = \$PWD.Path
-          cd \$Env:GITHUB_WORKSPACE
-          New-Item -ItemType SymbolicLink -Path tk -Value \$workingDir
-          cd tk
-
           # Run C++ unit tests
           cmake -DCMAKE_BUILD_TYPE=Debug test -Bbuild/test -T ClangCL
           cmake --build build/test -j9 --config Debug
