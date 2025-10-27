@@ -8,9 +8,9 @@
 
 import os
 import re
+import shutil
 import subprocess
 import sys
-import shutil
 from pathlib import Path
 
 from setuptools import Extension, find_packages, setup
