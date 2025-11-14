@@ -30,10 +30,8 @@ def define_common_targets():
             "src/regex.cpp",
         ],
         exported_deps = [
+            "fbsource//third-party/re2:re2",
             ":headers",
-        ],
-        exported_external_deps = [
-            "re2",
         ],
         visibility = ["//pytorch/tokenizers/..."],
         header_namespace = "",
@@ -75,10 +73,8 @@ def define_common_targets():
             "src/bpe_tokenizer_base.cpp",
         ],
         exported_deps = [
+            "fbsource//third-party/re2:re2",
             ":headers",
-        ],
-        exported_external_deps = [
-            "re2",
         ],
         visibility = [
             "//pytorch/tokenizers/...",
@@ -117,11 +113,9 @@ def define_common_targets():
             ":regex",
         ],
         exported_deps = [
+            "fbsource//third-party/re2:re2",
             ":bpe_tokenizer_base",
             ":headers",
-        ],
-        exported_external_deps = [
-            "re2",
         ],
         visibility = [
             "@EXECUTORCH_CLIENTS",
@@ -142,6 +136,7 @@ def define_common_targets():
             ":regex",
         ],
         exported_deps = [
+            "fbsource//third-party/re2:re2",
             ":bpe_tokenizer_base",
             ":headers",
             "//pytorch/tokenizers/third-party:unicode",
@@ -151,7 +146,6 @@ def define_common_targets():
             "//pytorch/tokenizers/...",
         ],
         exported_external_deps = [
-            "re2",
             "nlohmann_json",
         ],
         platforms = PLATFORMS,
@@ -181,11 +175,11 @@ def define_common_targets():
             ":regex",
         ],
         exported_deps = [
+            "fbsource//third-party/re2:re2",
             ":bpe_tokenizer_base",
             ":headers",
         ],
         exported_external_deps = [
-            "re2",
             "nlohmann_json",
         ],
         visibility = [

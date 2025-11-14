@@ -68,15 +68,13 @@ def define_common_targets():
             "test_string_integer_map.cpp",
         ],
         deps = [
+            "fbsource//third-party/re2:re2",
             "//pytorch/tokenizers:headers",
         ],
         env = {
             "RESOURCES_PATH": "$(location :resources)/resources",
         },
         platforms = [CXX, ANDROID],  # Cannot bundle resources on Apple platform.
-        external_deps = [
-            "re2",
-        ],
     )
 
     runtime.cxx_test(
@@ -85,15 +83,13 @@ def define_common_targets():
             "test_tiktoken.cpp",
         ],
         deps = [
+            "fbsource//third-party/re2:re2",
             "//pytorch/tokenizers:tiktoken",
         ],
         env = {
             "RESOURCES_PATH": "$(location :resources)/resources",
         },
         platforms = [CXX, ANDROID],  # Cannot bundle resources on Apple platform.
-        external_deps = [
-            "re2",
-        ],
     )
 
     runtime.cxx_test(
