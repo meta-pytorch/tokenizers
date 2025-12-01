@@ -1,23 +1,6 @@
 load("@fbsource//xplat/executorch/build:runtime_wrapper.bzl", "runtime")
-load("@fbsource//xplat/executorch/third-party:glob_defs.bzl", "subdir_glob")
 
 def define_common_targets():
-    runtime.cxx_library(
-        name = "unicode",
-        srcs = [
-            "llama.cpp-unicode/src/unicode.cpp",
-            "llama.cpp-unicode/src/unicode-data.cpp",
-        ],
-        header_namespace = "",
-        exported_headers = subdir_glob([
-            ("llama.cpp-unicode/include", "*.h"),
-        ]),
-        compiler_flags = [
-            "-Wno-error=deprecated-declarations",
-        ],
-        visibility = ["@EXECUTORCH_CLIENTS", "//pytorch/tokenizers/..."],
-    )
-
     if runtime.is_oss:
         runtime.cxx_library(
             name = "abseil",
