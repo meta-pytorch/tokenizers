@@ -182,9 +182,31 @@ Error HFTokenizer::load(const std::string& path) {
     std::vector<std::pair<std::string, std::string>> merge_pairs;
 
     for (const auto& merge : merges) {
-      if (merge.size() == 2) {
-        std::string first = merge[0];
-        std::string second = merge[1];
+      std::string first, second;
+
+      if (merge.is_string()) {
+        // Legacy format: "token1 token2" (space-separated string)
+        // This is the standard HuggingFace tokenizer.json format
+        std::string merge_str = merge.get<std::string>();
+
+        // Skip #version header lines (like HuggingFace does)
+        if (merge_str.rfind("#version", 0) == 0) {
+          continue;
+        }
+
+        auto space_pos = merge_str.find(' ');
+        if (space_pos != std::string::npos) {
+          first = merge_str.substr(0, space_pos);
+          second = merge_str.substr(space_pos + 1);
+        }
+      } else if (merge.is_array() && merge.size() == 2) {
+        // Tuple format: ["token1", "token2"] (array of two strings)
+        // This format supports tokens containing spaces
+        first = merge[0].get<std::string>();
+        second = merge[1].get<std::string>();
+      }
+
+      if (!first.empty() && !second.empty()) {
         merge_pairs.emplace_back(first, second);
       }
     }
