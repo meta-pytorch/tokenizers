@@ -117,6 +117,11 @@ Llama2cTokenizer::~Llama2cTokenizer() {
   }
 }
 
+Result<std::string> Llama2cTokenizer::id_to_piece(uint64_t token) const {
+  TK_CHECK_OK_OR_RETURN_ERROR(_decode_verify(token));
+  return std::string(vocab_[token]);
+}
+
 /**
  * @brief Decode a token into string.
  *
