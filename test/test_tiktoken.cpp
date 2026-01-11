@@ -74,6 +74,12 @@ TEST_F(TiktokenTest, TestDecodeWithoutLoad) {
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
+TEST_F(TiktokenTest, TestIdToPieceWithoutLoad) {
+  Tiktoken tokenizer;
+  auto result = tokenizer.id_to_piece(0);
+  EXPECT_EQ(result.error(), Error::Uninitialized);
+}
+
 TEST_F(TiktokenTest, TokenizerVocabSizeIsExpected) {
   Error res = tokenizer_->load(modelPath_.c_str());
   EXPECT_EQ(res, Error::Ok);
@@ -103,6 +109,29 @@ TEST_F(TiktokenTest, TestDecode) {
     EXPECT_EQ(out.error(), Error::Ok);
     EXPECT_EQ(out.get(), expected[i]);
   }
+}
+
+TEST_F(TiktokenTest, TestIdToPiece) {
+  Error res = tokenizer_->load(modelPath_.c_str());
+  EXPECT_EQ(res, Error::Ok);
+  std::vector<std::pair<uint64_t, std::string>> expected = {
+      {128000, "<|begin_of_text|>"},
+      {15339, "hello"},
+      {1917, " world"},
+  };
+  for (const auto& [token, piece] : expected) {
+    Result<std::string> out = tokenizer_->id_to_piece(token);
+    EXPECT_EQ(out.error(), Error::Ok);
+    EXPECT_EQ(out.get(), piece);
+  }
+}
+
+TEST_F(TiktokenTest, IdToPieceOutOfRangeFails) {
+  Error res = tokenizer_->load(modelPath_.c_str());
+  EXPECT_EQ(res, Error::Ok);
+  Result<std::string> out =
+      tokenizer_->id_to_piece(static_cast<uint64_t>(tokenizer_->vocab_size()));
+  EXPECT_EQ(out.error(), Error::OutOfRange);
 }
 
 TEST_F(TiktokenTest, TokenizerDecodeOutOfRangeFails) {

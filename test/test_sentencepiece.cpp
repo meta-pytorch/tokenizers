@@ -31,6 +31,12 @@ TEST(SPTokenizerTest, TestDecodeWithoutLoad) {
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
+TEST(SPTokenizerTest, TestIdToPieceWithoutLoad) {
+  SPTokenizer tokenizer;
+  auto result = tokenizer.id_to_piece(0);
+  EXPECT_EQ(result.error(), Error::Uninitialized);
+}
+
 TEST(SPTokenizerTest, TestLoad) {
   SPTokenizer tokenizer;
   auto path = _get_resource_path("test_sentencepiece.model");
@@ -71,6 +77,36 @@ TEST(SPTokenizerTest, TestDecode) {
     EXPECT_TRUE(result.ok());
     EXPECT_EQ(result.get(), expected[i + 1]);
   }
+}
+
+TEST(SPTokenizerTest, TestIdToPiece) {
+  SPTokenizer tokenizer;
+  auto path = _get_resource_path("test_sentencepiece.model");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  auto hello = tokenizer.id_to_piece(15043);
+  EXPECT_EQ(hello.error(), Error::Ok);
+  EXPECT_EQ(hello.get(), "▁Hello");
+
+  auto world = tokenizer.id_to_piece(3186);
+  EXPECT_EQ(world.error(), Error::Ok);
+  EXPECT_EQ(world.get(), "▁world");
+
+  auto bang = tokenizer.id_to_piece(29991);
+  EXPECT_EQ(bang.error(), Error::Ok);
+  EXPECT_EQ(bang.get(), "!");
+}
+
+TEST(SPTokenizerTest, IdToPieceOutOfRangeFails) {
+  SPTokenizer tokenizer;
+  auto path = _get_resource_path("test_sentencepiece.model");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  auto result =
+      tokenizer.id_to_piece(static_cast<uint64_t>(tokenizer.vocab_size()));
+  EXPECT_EQ(result.error(), Error::OutOfRange);
 }
 
 } // namespace tokenizers

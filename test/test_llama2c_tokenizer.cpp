@@ -44,11 +44,47 @@ TEST_F(Llama2cTokenizerTest, DecodeWithoutLoadFails) {
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
+TEST_F(Llama2cTokenizerTest, IdToPieceWithoutLoadFails) {
+  auto result = tokenizer_->id_to_piece(0);
+  EXPECT_EQ(result.error(), Error::Uninitialized);
+}
+
 TEST_F(Llama2cTokenizerTest, DecodeOutOfRangeFails) {
   Error res = tokenizer_->load(modelPath_.c_str());
   EXPECT_EQ(res, Error::Ok);
   auto result = tokenizer_->decode(0, 64000);
   // The vocab size is 32000, and token 64000 is out of vocab range.
+  EXPECT_EQ(result.error(), Error::OutOfRange);
+}
+
+TEST_F(Llama2cTokenizerTest, IdToPieceReturnsExpectedPieces) {
+  auto with_vocab_path = _get_resource_path("test_llama2c_tokenizer_with_vocab.bin");
+  Error res = tokenizer_->load(with_vocab_path);
+  EXPECT_EQ(res, Error::Ok);
+
+  auto unk = tokenizer_->id_to_piece(0);
+  EXPECT_EQ(unk.error(), Error::Ok);
+  EXPECT_EQ(unk.get(), "<unk>");
+
+  auto bos = tokenizer_->id_to_piece(1);
+  EXPECT_EQ(bos.error(), Error::Ok);
+  EXPECT_EQ(bos.get(), "<s>");
+
+  auto eos = tokenizer_->id_to_piece(2);
+  EXPECT_EQ(eos.error(), Error::Ok);
+  EXPECT_EQ(eos.get(), "</s>");
+
+  auto byte_token = tokenizer_->id_to_piece(3);
+  EXPECT_EQ(byte_token.error(), Error::Ok);
+  EXPECT_EQ(byte_token.get(), "<0x41>");
+}
+
+TEST_F(Llama2cTokenizerTest, IdToPieceOutOfRangeFails) {
+  auto with_vocab_path = _get_resource_path("test_llama2c_tokenizer_with_vocab.bin");
+  Error res = tokenizer_->load(with_vocab_path);
+  EXPECT_EQ(res, Error::Ok);
+
+  auto result = tokenizer_->id_to_piece(4);
   EXPECT_EQ(result.error(), Error::OutOfRange);
 }
 
