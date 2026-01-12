@@ -27,6 +27,9 @@ class Llama2cTokenizerTest : public Test {
  public:
   void SetUp() override {
     tokenizer_ = std::make_unique<Llama2cTokenizer>();
+    // Minimal llama2.c tokenizer fixture:
+    // vocab_size=4 (0:"<unk>", 1:"<s>", 2:"</s>", 3:"<0x41>" -> 'A')
+    // bos=1, eos=2.
     modelPath_ = _get_resource_path("test_llama2c_tokenizer.bin");
   }
 
