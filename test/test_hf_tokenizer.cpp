@@ -53,6 +53,12 @@ TEST(HFTokenizerTest, TestDecodeWithoutLoad) {
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
+TEST(HFTokenizerTest, TestIdToPieceWithoutLoad) {
+  HFTokenizer tokenizer;
+  auto result = tokenizer.id_to_piece(0);
+  EXPECT_EQ(result.error(), Error::Uninitialized);
+}
+
 TEST(HFTokenizerTest, TestLoad) {
   HFTokenizer tokenizer;
   auto path = _get_resource_path("test_hf_tokenizer.json");
@@ -79,6 +85,55 @@ TEST(HFTokenizerTest, TestSpecialTokensMap) {
   // Verify eos_token is loaded from special_tokens_map.json
   auto eos_token_id = tokenizer.eos_tok();
   EXPECT_EQ(eos_token_id, 128009); // <|eot_id|>
+}
+
+TEST(HFTokenizerTest, TestIdToPiece) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("test_hf_tokenizer.json");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  auto unk = tokenizer.id_to_piece(0);
+  EXPECT_EQ(unk.error(), Error::Ok);
+  EXPECT_EQ(unk.get(), "<unk>");
+
+  auto bos = tokenizer.id_to_piece(1);
+  EXPECT_EQ(bos.error(), Error::Ok);
+  EXPECT_EQ(bos.get(), "<s>");
+
+  auto hello = tokenizer.id_to_piece(8);
+  EXPECT_EQ(hello.error(), Error::Ok);
+  EXPECT_EQ(hello.get(), "▁Hello");
+
+  auto world = tokenizer.id_to_piece(9);
+  EXPECT_EQ(world.error(), Error::Ok);
+  EXPECT_EQ(world.get(), "▁world!");
+}
+
+TEST(HFTokenizerTest, TestIdToPieceSpecialTokensMap) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("hf_tokenizer_dir/");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  auto bos = tokenizer.id_to_piece(tokenizer.bos_tok());
+  EXPECT_EQ(bos.error(), Error::Ok);
+  EXPECT_EQ(bos.get(), "<|begin_of_text|>");
+
+  auto eos = tokenizer.id_to_piece(tokenizer.eos_tok());
+  EXPECT_EQ(eos.error(), Error::Ok);
+  EXPECT_EQ(eos.get(), "<|eot_id|>");
+}
+
+TEST(HFTokenizerTest, IdToPieceOutOfRangeFails) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("test_hf_tokenizer.json");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  auto result =
+      tokenizer.id_to_piece(static_cast<uint64_t>(tokenizer.vocab_size()) + 1);
+  EXPECT_EQ(result.error(), Error::OutOfRange);
 }
 
 TEST(HFTokenizerTest, TestEncode) {

@@ -56,6 +56,17 @@ Error SPTokenizer::load(const std::string& tokenizer_path) {
 
 SPTokenizer::~SPTokenizer() {}
 
+Result<std::string> SPTokenizer::id_to_piece(uint64_t token) const {
+  if (!initialized_) {
+    fprintf(stderr, "Tokenizer not initialized\n");
+    return Error::Uninitialized;
+  }
+  if (token >= static_cast<uint64_t>(vocab_size_)) {
+    return Error::OutOfRange;
+  }
+  return _processor->IdToPiece(static_cast<int>(token));
+}
+
 /**
  * @brief Decode a token into string.
  *

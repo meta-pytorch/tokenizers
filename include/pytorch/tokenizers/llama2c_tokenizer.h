@@ -21,6 +21,8 @@ class Llama2cTokenizer : public Tokenizer {
 
   Error load(const std::string& tokenizer_path) override;
 
+  Result<std::string> id_to_piece(uint64_t token) const override;
+
   Result<std::vector<uint64_t>>
   encode(const std::string& input, int8_t bos, int8_t eos) const override;
 

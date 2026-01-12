@@ -73,6 +73,38 @@ TEST_F(TekkenTest, TestTokenizerProperties) {
   EXPECT_NE(tokenizer_->bos_tok(), tokenizer_->eos_tok());
 }
 
+TEST_F(TekkenTest, IdToPieceWithoutLoadFails) {
+  Tekken tokenizer;
+  auto result = tokenizer.id_to_piece(0);
+  EXPECT_EQ(result.error(), Error::Uninitialized);
+}
+
+TEST_F(TekkenTest, IdToPieceReturnsExpectedSpecialTokens) {
+  Error res = tokenizer_->load(modelPath_);
+  EXPECT_EQ(res, Error::Ok);
+
+  auto bos = tokenizer_->id_to_piece(tokenizer_->bos_tok());
+  EXPECT_EQ(bos.error(), Error::Ok);
+  EXPECT_EQ(bos.get(), "<s>");
+
+  auto eos = tokenizer_->id_to_piece(tokenizer_->eos_tok());
+  EXPECT_EQ(eos.error(), Error::Ok);
+  EXPECT_EQ(eos.get(), "</s>");
+
+  auto inst = tokenizer_->id_to_piece(3);
+  EXPECT_EQ(inst.error(), Error::Ok);
+  EXPECT_EQ(inst.get(), "[INST]");
+}
+
+TEST_F(TekkenTest, IdToPieceOutOfRangeFails) {
+  Error res = tokenizer_->load(modelPath_);
+  EXPECT_EQ(res, Error::Ok);
+
+  auto result =
+      tokenizer_->id_to_piece(static_cast<uint64_t>(tokenizer_->vocab_size()));
+  EXPECT_EQ(result.error(), Error::OutOfRange);
+}
+
 TEST_F(TekkenTest, TestBasicEncode) {
   Error res = tokenizer_->load(modelPath_);
   EXPECT_EQ(res, Error::Ok);
