@@ -1,0 +1,70 @@
+load("@fbcode_macros//build_defs:build_file_migration.bzl", "fbcode_target", "non_fbcode_target")
+load("@fbsource//xplat/executorch/build:runtime_wrapper.bzl", "runtime")
+load(":targets.bzl", "define_common_targets")
+
+oncall("executorch")
+# Any targets that should be shared between fbcode and xplat must be defined in
+# targets.bzl. This file can contain xplat-only targets.
+
+non_fbcode_target(_kind = define_common_targets)
+
+# !!!! fbcode/pytorch/tokenizers/test/TARGETS was merged into this file, see https://fburl.com/workplace/xl8l9yuo for more info !!!!
+
+# Any targets that should be shared between fbcode and xplat must be defined in
+# targets.bzl. This file can contain fbcode-only targets.
+
+# @noautodeps
+
+fbcode_target(_kind = define_common_targets)
+
+fbcode_target(
+    _kind = runtime.export_file,
+    name = "test_tiktoken_tokenizer_model",
+    src = "resources/test_tiktoken_tokenizer.model",
+    visibility = [
+        "//pytorch/tokenizers/...",
+        "@EXECUTORCH_CLIENTS",
+    ],
+)
+
+fbcode_target(
+    _kind = runtime.export_file,
+    name = "test_hf_tokenizer.json",
+    src = "resources/test_hf_tokenizer.json",
+    visibility = [
+        "//pytorch/tokenizers/...",
+        "@EXECUTORCH_CLIENTS",
+    ],
+)
+
+fbcode_target(
+    _kind = runtime.python_test,
+    name = "test_tiktoken_py",
+    srcs = [
+        "test_tiktoken.py",
+    ],
+    resources = {
+        ":test_tiktoken_tokenizer_model": "resources/test_tiktoken_tokenizer.model",
+    },
+    deps = [
+        "fbsource//third-party/pypi/blobfile:blobfile",
+        "//pytorch/tokenizers/pytorch_tokenizers:tokenizers",
+    ],
+)
+
+fbcode_target(
+    _kind = runtime.python_test,
+    name = "test_python_bindings",
+    srcs = [
+        "test_python_bindings.py",
+    ],
+    preload_deps = [
+        "//pytorch/tokenizers:regex_lookahead",
+    ],
+    resources = {
+        ":test_hf_tokenizer.json": "resources/test_hf_tokenizer.json",
+    },
+    deps = [
+        "//pytorch/tokenizers/pytorch_tokenizers:tokenizers",
+    ],
+)
