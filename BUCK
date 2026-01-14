@@ -16,6 +16,12 @@ runtime.cxx_library(
         "//pytorch/tokenizers/...",
         "@EXECUTORCH_CLIENTS",
     ],
+    exported_deps = [
+        "fbsource//third-party/re2:re2",
+    ],
+    exported_external_deps = [
+        "sentencepiece",
+    ],
 )
 
 runtime.cxx_library(
