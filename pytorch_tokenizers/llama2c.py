@@ -15,9 +15,9 @@ from sentencepiece import SentencePieceProcessor as SentencePieceProcessor
 
 class Llama2cTokenizer:
     def __init__(self, model_path: str):
-        assert os.path.isfile(
-            model_path
-        ), f"Need a valid tokenizer model path but got {model_path}"
+        assert os.path.isfile(model_path), (
+            f"Need a valid tokenizer model path but got {model_path}"
+        )
         # pyre-fixme[28]: Unexpected keyword argument `model_file` to call `SentencePieceProcessor.__init__`.
         self.sp_model = SentencePieceProcessor(model_file=model_path)
         self.model_path = model_path
