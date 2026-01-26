@@ -71,7 +71,7 @@ class TestHfTokenizer(unittest.TestCase):
 
     def test_phi_4_mini(self) -> None:
         tokenizer = AutoTokenizer.from_pretrained(
-            "software-mansion/react-native-executorch-phi-4-mini"
+            "microsoft/Phi-4-mini-instruct"
         )
         tokenizer_path = tokenizer.save_pretrained(self.temp_dir.name)[-1]
 

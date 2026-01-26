@@ -27,7 +27,7 @@ class Pcre2Regex : public IRegex {
   /**
    * @brief Construct a PCRE2 regex.
    */
-  explicit Pcre2Regex(){};
+  explicit Pcre2Regex() {};
 
   /**
    * @brief Compile the given regex pattern.

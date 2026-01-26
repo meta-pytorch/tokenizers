@@ -264,9 +264,10 @@ Error HFTokenizer::load(const std::string& path) {
     std::ifstream special_file(special_tokens_map_json);
     if (special_file) {
       try {
-        json special_tokens_json = json::parse(std::string(
-            (std::istreambuf_iterator<char>(special_file)),
-            std::istreambuf_iterator<char>()));
+        json special_tokens_json = json::parse(
+            std::string(
+                (std::istreambuf_iterator<char>(special_file)),
+                std::istreambuf_iterator<char>()));
 
         if (special_tokens_json.contains("bos_token")) {
           bos_token = extract_token_string(special_tokens_json["bos_token"]);

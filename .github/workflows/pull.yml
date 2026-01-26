@@ -30,7 +30,7 @@ jobs:
 
         # Install tokenizers
         pip install . -v
-        pip install pytest blobfile transformers>=4.53.1
+        pip install protobuf pytest blobfile transformers>=4.53.1
 
         # Run tests
         pytest
@@ -73,7 +73,7 @@ jobs:
             Write-Host "Python installation was unsuccessful. Exit code: \$LASTEXITCODE."
             exit \$LASTEXITCODE
           }
-          pip install pytest blobfile transformers>=4.53.1
+          pip install protobuf pytest blobfile transformers>=4.53.1
 
           # Run python tests
           pytest
