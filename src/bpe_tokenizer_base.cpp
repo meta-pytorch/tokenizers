@@ -193,7 +193,7 @@ Result<std::vector<uint64_t>> BPETokenizerBase::byte_pair_encode_(
   if (piece.size() == 1) {
     const auto result = token_map.tryGetInteger(piece);
     if (result) {
-      return std::vector<uint64_t>(*result);
+      return std::vector<uint64_t>(1, *result);
     } else {
       TK_LOG(Error, "unknown token: '%s'", piece.c_str());
       return Error::EncodeFailure;
@@ -284,17 +284,20 @@ Result<std::string> BPETokenizerBase::decode(
   std::string ret;
 
   std::string_view token_bytes;
-  auto result = token_map_->tryGetString(cur);
-  if (!result) {
-    result = special_token_map_->tryGetString(cur);
-    if (!result) {
+  auto regular_token_result = token_map_->tryGetString(cur);
+  if (regular_token_result) { // Found in regular tokens
+    token_bytes = *regular_token_result;
+  } else { // Not a regular token, check if it's a special token
+    auto special_token_result = special_token_map_->tryGetString(cur);
+    if (special_token_result) { // It's a special token
+      if (skip_special_tokens) {
+        return std::string(""); // Skip it
+      }
+      token_bytes = *special_token_result; // Don't skip, use its string
+    } else { // Unknown token
       TK_LOG(Error, "unknown token: %" PRIu64 "\n", cur);
       return Error::DecodeFailure;
-    } else {
-      token_bytes = *result;
     }
-  } else {
-    token_bytes = *result;
   }
   _decode(std::string(token_bytes), ret);
 

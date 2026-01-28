@@ -50,6 +50,7 @@ Error SPTokenizer::load(const std::string& tokenizer_path) {
   vocab_size_ = _processor->GetPieceSize();
   bos_tok_ = _processor->bos_id();
   eos_tok_ = _processor->eos_id();
+  unk_tok_ = _processor->unk_id(); // Explicitly set unk_tok_
   initialized_ = true;
   return Error::Ok;
 }

@@ -209,6 +209,7 @@ class HFTokenizer : public detail::BPETokenizerBase {
   std::unique_ptr<detail::MergeMap> merge_map_;
   std::optional<detail::TokenMap>
       merge_ranks_; // Pre-computed merge ranks for BPE
+  bool byte_fallback_ = false;
 };
 
 } // namespace tokenizers

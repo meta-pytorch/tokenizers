@@ -66,6 +66,7 @@ Error Llama2cTokenizer::load(const std::string& tokenizer_path) {
   vocab_size_ = tokenizer_vocab_size;
   bos_tok_ = metadata[1];
   eos_tok_ = metadata[2];
+  unk_tok_ = 0; // Llama2c implicitly uses 0 for UNK
   max_token_length_ = metadata[3];
 
   // allocate space for the vocabulary
@@ -121,7 +122,6 @@ Result<std::string> Llama2cTokenizer::id_to_piece(uint64_t token) const {
   TK_CHECK_OK_OR_RETURN_ERROR(_decode_verify(token));
   return std::string(vocab_[token]);
 }
-
 /**
  * @brief Decode a token into string.
  *
