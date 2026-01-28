@@ -103,6 +103,11 @@ class NormalizerConfig {
    */
   NORMALIZER_CONFIG_MEMBER(std::vector<NormalizerConfig>, normalizers)
 
+  /**
+   * Used by: PrependNormalizer
+   */
+  NORMALIZER_CONFIG_MEMBER(std::string, prepend)
+
   /*----------------*/
   /* Public methods */
   /*----------------*/
@@ -150,6 +155,26 @@ class ReplaceNormalizer : public Normalizer {
   const std::string content_;
 
 }; // end class ReplaceNormalizer
+
+// -- Prepend ------------------------------------------------------------------
+// Used to prepend a string to the input
+// CITE:
+// https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/normalizers/prepend.rs
+
+class PrependNormalizer : public Normalizer {
+ public:
+  /**
+   * @param prepend: The string to prepend
+   */
+  explicit PrependNormalizer(const std::string& prepend) : prepend_(prepend) {}
+
+  /** Prepend the stored string */
+  std::string normalize(const std::string& input) const override;
+
+ protected:
+  const std::string prepend_;
+
+}; // end class PrependNormalizer
 
 // -- Sequence -----------------------------------------------------------------
 // Used by tokenizers

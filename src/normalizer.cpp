@@ -44,6 +44,13 @@ Normalizer::Ptr NormalizerConfig::create() const {
     }
     return Normalizer::Ptr(new ReplaceNormalizer(*pattern, *content));
   }
+  if (type == "Prepend") {
+    if (!prepend) {
+      throw std::runtime_error(
+          "Missing prepend for Normalizer of type Prepend");
+    }
+    return Normalizer::Ptr(new PrependNormalizer(*prepend));
+  }
   if (type == "Sequence") {
     if (!normalizers || normalizers->empty()) {
       throw std::runtime_error(
@@ -77,6 +84,8 @@ NormalizerConfig& NormalizerConfig::parse_json(const json& json_config) {
     }
 
     content = json_config.at("content");
+  } else if (type == "Prepend") {
+    prepend = json_config.at("prepend");
   } else if (type == "Sequence") {
     normalizers = std::vector<NormalizerConfig>();
     for (const auto& entry : json_config.at("normalizers")) {
@@ -120,6 +129,16 @@ std::string ReplaceNormalizer::normalize(const std::string& input) const {
   }
 
   return result;
+}
+
+
+// PrependNormalizer ///////////////////////////////////////////////////////////
+
+std::string PrependNormalizer::normalize(const std::string& input) const {
+  if (input.empty()) {
+    return "";
+  }
+  return prepend_ + input;
 }
 
 // SequenceNormalizer //////////////////////////////////////////////////////////
