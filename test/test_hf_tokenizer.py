@@ -70,9 +70,7 @@ class TestHfTokenizer(unittest.TestCase):
         self.assertEqual(cpp_tokenizer.eos_tok(), eos_id)
 
     def test_phi_4_mini(self) -> None:
-        tokenizer = AutoTokenizer.from_pretrained(
-            "microsoft/Phi-4-mini-instruct"
-        )
+        tokenizer = AutoTokenizer.from_pretrained("microsoft/Phi-4-mini-instruct")
         tokenizer_path = tokenizer.save_pretrained(self.temp_dir.name)[-1]
 
         cpp_tokenizer = CppHFTokenizer()
