@@ -255,8 +255,10 @@ Result<std::string> BPETokenizerBase::id_to_piece(uint64_t token) const {
   return std::string(*result);
 }
 
-Result<std::string> BPETokenizerBase::decode(uint64_t prev, uint64_t cur)
-    const {
+Result<std::string> BPETokenizerBase::decode(
+    uint64_t prev,
+    uint64_t cur,
+    bool skip_special_tokens) const {
   (void)prev;
   if (!initialized_) {
     return Error::Uninitialized;

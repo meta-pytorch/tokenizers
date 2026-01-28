@@ -26,8 +26,10 @@ class Llama2cTokenizer : public Tokenizer {
   Result<std::vector<uint64_t>>
   encode(const std::string& input, int8_t bos, int8_t eos) const override;
 
-  Result<std::string> decode(uint64_t prev_token, uint64_t token)
-      const override;
+  Result<std::string> decode(
+      uint64_t prev_token,
+      uint64_t token,
+      bool skip_special_tokens = false) const override;
 
  private:
   inline Error _decode_verify(uint64_t token) const {

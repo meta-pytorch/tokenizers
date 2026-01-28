@@ -146,7 +146,7 @@ class TiktokenTokenizer:
             t.append(self.eos_id)
         return t
 
-    def decode(self, t: Sequence[int]) -> str:
+    def decode(self, t: Sequence[int], skip_special_tokens: bool = False) -> str:
         """
         Decodes a list of token IDs into a string.
 

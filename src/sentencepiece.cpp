@@ -75,8 +75,11 @@ Result<std::string> SPTokenizer::id_to_piece(uint64_t token) const {
  * @return Result<std::string> The string representation of the
  * token.
  */
-Result<std::string> SPTokenizer::decode(uint64_t prev_token, uint64_t token)
-    const {
+Result<std::string> SPTokenizer::decode(
+    uint64_t prev_token,
+    uint64_t token,
+    bool skip_special_tokens) const {
+  (void)skip_special_tokens; // Mark as unused
   if (!initialized_) {
     fprintf(stderr, "Tokenizer not initialized\n");
     return Error::Uninitialized;

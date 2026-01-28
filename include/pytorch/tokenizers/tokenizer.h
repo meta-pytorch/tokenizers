@@ -61,8 +61,10 @@ class Tokenizer {
   virtual Result<std::vector<uint64_t>>
   encode(const std::string& input, int8_t bos = 0, int8_t eos = 0) const = 0;
 
-  virtual Result<std::string> decode(uint64_t prev_token, uint64_t token)
-      const = 0;
+  virtual Result<std::string> decode(
+      uint64_t prev_token,
+      uint64_t token,
+      bool skip_special_tokens = false) const = 0;
 
   // getters
   int32_t vocab_size() const {
@@ -84,7 +86,7 @@ class Tokenizer {
  protected:
   bool initialized_ = false;
   int32_t vocab_size_ = 0;
-  uint64_t bos_tok_ = 0, eos_tok_ = 0;
+  uint64_t bos_tok_ = 0, eos_tok_ = 0, unk_tok_ = 0;
 };
 
 } // namespace tokenizers
