@@ -11,6 +11,7 @@
 
 // Standard
 #include <inttypes.h>
+#include <cstdint>
 #include <functional>
 
 namespace tokenizers {
@@ -253,6 +254,23 @@ Result<std::string> BPETokenizerBase::id_to_piece(uint64_t token) const {
     return Error::OutOfRange;
   }
   return std::string(*result);
+}
+
+Result<uint64_t> BPETokenizerBase::piece_to_id(const std::string& text) const {
+  if (!initialized_) {
+    return Error::Uninitialized;
+  }
+  if (!token_map_.has_value() || !special_token_map_.has_value()) {
+    return Error::Internal;
+  }
+  auto result = token_map_->tryGetInteger(text);
+  if (!result) {
+    result = special_token_map_->tryGetInteger(text);
+  }
+  if (!result) {
+    return Error::OutOfRange;
+  }
+  return *result;
 }
 
 Result<std::string> BPETokenizerBase::decode(

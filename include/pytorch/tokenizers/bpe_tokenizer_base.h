@@ -132,6 +132,7 @@ class BPETokenizerBase : public Tokenizer {
   encode(const std::string& input, int8_t bos, int8_t eos) const override;
 
   Result<std::string> id_to_piece(uint64_t token) const override;
+  Result<uint64_t> piece_to_id(const std::string& text) const override;
 
   Result<std::string> decode(
       uint64_t prev_token,

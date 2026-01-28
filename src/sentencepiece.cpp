@@ -67,6 +67,25 @@ Result<std::string> SPTokenizer::id_to_piece(uint64_t token) const {
   return _processor->IdToPiece(static_cast<int>(token));
 }
 
+Result<uint64_t> SPTokenizer::piece_to_id(const std::string& text) const {
+  if (!initialized_) {
+    fprintf(stderr, "Tokenizer not initialized\n");
+    return Error::Uninitialized;
+  }
+  int32_t id = _processor->PieceToId(text);
+  if (id == _processor->unk_id()) {
+    // Check if the piece is actually the unk token itself.
+    // In SentencePiece, unk_id() can be a valid token if the piece itself is
+    // "<unk>"
+    if (text == _processor->IdToPiece(id)) {
+      return static_cast<uint64_t>(id);
+    }
+    fprintf(stderr, "Piece '%s' not found in vocabulary\n", text.c_str());
+    return Error::OutOfRange;
+  }
+  return static_cast<uint64_t>(id);
+}
+
 /**
  * @brief Decode a token into string.
  *

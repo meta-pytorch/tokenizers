@@ -164,6 +164,20 @@ str_lookup(const char* str, TokenIndex* sorted_vocab, int32_t vocab_size) {
   return res != nullptr ? res->id : -1;
 }
 
+Result<uint64_t> Llama2cTokenizer::piece_to_id(const std::string& text) const {
+  if (!initialized_) {
+    TK_LOG(Error, "Tokenizer not initialized");
+    return Error::Uninitialized;
+  }
+  int32_t id = str_lookup(text.c_str(), sorted_vocab_.get(), vocab_size_);
+  if (id != -1) {
+    return static_cast<uint64_t>(id);
+  } else {
+    TK_LOG(Error, "Piece '%s' not found in vocabulary", text.c_str());
+    return Error::OutOfRange;
+  }
+}
+
 /**
  * @brief Encode a string into a sequence of tokens.
  *

@@ -52,6 +52,40 @@ TEST_F(Llama2cTokenizerTest, IdToPieceWithoutLoadFails) {
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
+TEST_F(Llama2cTokenizerTest, PieceToIdWithoutLoadFails) {
+  auto result = tokenizer_->piece_to_id("<s>");
+  EXPECT_EQ(result.error(), Error::Uninitialized);
+}
+
+TEST_F(Llama2cTokenizerTest, PieceToIdReturnsExpectedIds) {
+  Error res = tokenizer_->load(modelPath_);
+  EXPECT_EQ(res, Error::Ok);
+
+  auto unk = tokenizer_->piece_to_id("<unk>");
+  EXPECT_EQ(unk.error(), Error::Ok);
+  EXPECT_EQ(unk.get(), 0);
+
+  auto bos = tokenizer_->piece_to_id("<s>");
+  EXPECT_EQ(bos.error(), Error::Ok);
+  EXPECT_EQ(bos.get(), 1);
+
+  auto eos = tokenizer_->piece_to_id("</s>");
+  EXPECT_EQ(eos.error(), Error::Ok);
+  EXPECT_EQ(eos.get(), 2);
+
+  auto byte_token = tokenizer_->piece_to_id("<0x41>");
+  EXPECT_EQ(byte_token.error(), Error::Ok);
+  EXPECT_EQ(byte_token.get(), 3);
+}
+
+TEST_F(Llama2cTokenizerTest, PieceToIdNotFoundFails) {
+  Error res = tokenizer_->load(modelPath_);
+  EXPECT_EQ(res, Error::Ok);
+
+  auto result = tokenizer_->piece_to_id("not_a_real_piece");
+  EXPECT_EQ(result.error(), Error::OutOfRange);
+}
+
 TEST_F(Llama2cTokenizerTest, DecodeOutOfRangeFails) {
   Error res = tokenizer_->load(modelPath_.c_str());
   EXPECT_EQ(res, Error::Ok);

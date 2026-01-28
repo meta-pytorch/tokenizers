@@ -48,6 +48,21 @@ class Tokenizer {
   virtual Result<std::string> id_to_piece(uint64_t token) const = 0;
 
   /**
+   * Returns token id for given raw vocabulary piece.
+   *
+   * This is the exact token representation stored in the tokenizer vocabulary
+   * (e.g. SentencePiece "▁hello", WordPiece "##ing", or byte-level BPE token
+   * bytes). It is intended for tokenizer introspection and downstream
+   * post-processing, and should not be confused with `encode()`, which
+   * applies the full tokenization pipeline including BPE for unknown pieces.
+   *
+   * @param text The raw vocabulary piece string to look up
+   * @return Result containing the token id, or an error if the piece is not
+   * found in the vocabulary or the tokenizer is not initialized
+   */
+  virtual Result<uint64_t> piece_to_id(const std::string& text) const = 0;
+
+  /**
    * Encode the input string into a vector of token IDs.
    *
    * @param input The input string to tokenize
