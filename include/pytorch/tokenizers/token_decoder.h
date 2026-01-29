@@ -45,7 +45,8 @@ class TokenDecoder {
    *
    * @returns decoded: The decoded token string
    */
-  virtual std::string decode(const std::string& token) const = 0;
+  virtual std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const = 0;
 
   // virtual destructor
   virtual ~TokenDecoder() = default;
@@ -99,7 +100,8 @@ class TokenDecoderConfig {
 
 class ByteLevelTokenDecoder : public TokenDecoder {
  public:
-  std::string decode(const std::string& token) const override;
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
 
 }; // end class ByteLevelTokenDecoder
 
@@ -111,7 +113,8 @@ class ReplaceTokenDecoder : public TokenDecoder {
   explicit ReplaceTokenDecoder(
       const std::string& pattern,
       const std::string& content);
-  std::string decode(const std::string& token) const override;
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
 
  private:
   std::string pattern_;
@@ -123,7 +126,8 @@ class ReplaceTokenDecoder : public TokenDecoder {
 
 class ByteFallbackTokenDecoder : public TokenDecoder {
  public:
-  std::string decode(const std::string& token) const override;
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
 
 }; // end class ByteFallbackTokenDecoder
 
@@ -132,7 +136,8 @@ class ByteFallbackTokenDecoder : public TokenDecoder {
 
 class FuseTokenDecoder : public TokenDecoder {
  public:
-  std::string decode(const std::string& token) const override;
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
 
 }; // end class FuseTokenDecoder
 
@@ -142,7 +147,8 @@ class FuseTokenDecoder : public TokenDecoder {
 class SequenceTokenDecoder : public TokenDecoder {
  public:
   explicit SequenceTokenDecoder(std::vector<TokenDecoder::Ptr> decoders);
-  std::string decode(const std::string& token) const override;
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
 
  private:
   std::vector<TokenDecoder::Ptr> decoders_;

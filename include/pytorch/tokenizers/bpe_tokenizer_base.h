@@ -135,8 +135,7 @@ class BPETokenizerBase : public Tokenizer {
   Result<uint64_t> piece_to_id(const std::string& text) const override;
 
   Result<std::string> decode(
-      uint64_t prev_token,
-      uint64_t token,
+      const std::vector<uint64_t>& tokens,
       bool skip_special_tokens = false) const override;
 
  protected:
@@ -182,7 +181,8 @@ class BPETokenizerBase : public Tokenizer {
       std::vector<uint64_t>& ret,
       uint64_t& last_piece_token_len) const = 0;
 
-  virtual void _decode(const std::string& input, std::string& ret) const = 0;
+  virtual std::vector<std::string> _decode(
+      const std::vector<std::string>& pieces) const = 0;
 };
 
 } // namespace detail

@@ -71,7 +71,8 @@ class Tekken : public detail::BPETokenizerBase {
       std::vector<uint64_t>& ret,
       uint64_t& last_piece_token_len) const override;
 
-  void _decode(const std::string& input, std::string& ret) const override;
+  std::vector<std::string> _decode(
+      const std::vector<std::string>& pieces) const override;
 
  private:
   // Parse the JSON configuration

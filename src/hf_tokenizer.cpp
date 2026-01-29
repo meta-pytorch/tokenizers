@@ -480,12 +480,12 @@ Error HFTokenizer::_encode(
   return Error::Ok;
 }
 
-void HFTokenizer::_decode(const std::string& input, std::string& ret) const {
+std::vector<std::string> HFTokenizer::_decode(
+    const std::vector<std::string>& pieces) const {
   if (_decoder) {
-    ret += _decoder->decode(input);
-  } else {
-    ret += input;
+    return _decoder->decode(pieces);
   }
+  return pieces;
 }
 
 Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
