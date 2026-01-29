@@ -27,7 +27,7 @@ TEST(SPTokenizerTest, TestEncodeWithoutLoad) {
 
 TEST(SPTokenizerTest, TestDecodeWithoutLoad) {
   SPTokenizer tokenizer;
-  auto result = tokenizer.decode(0, 0);
+  auto result = tokenizer.decode({0, 0});
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
@@ -106,12 +106,9 @@ TEST(SPTokenizerTest, TestDecode) {
   auto error = tokenizer.load(path);
   EXPECT_EQ(error, Error::Ok);
   std::vector<uint64_t> tokens = {1, 15043, 3186, 29991};
-  std::vector<std::string> expected = {"", "Hello", " world", "!"};
-  for (auto i = 0; i < 3; ++i) {
-    auto result = tokenizer.decode(tokens[i], tokens[i + 1]);
-    EXPECT_TRUE(result.ok());
-    EXPECT_EQ(result.get(), expected[i + 1]);
-  }
+  auto result = tokenizer.decode(tokens);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(result.get(), " Hello world!");
 }
 
 TEST(SPTokenizerTest, TestIdToPiece) {

@@ -49,7 +49,7 @@ TEST(HFTokenizerTest, TestEncodeWithoutLoad) {
 
 TEST(HFTokenizerTest, TestDecodeWithoutLoad) {
   HFTokenizer tokenizer;
-  auto result = tokenizer.decode(0, 0);
+  auto result = tokenizer.decode({0, 0});
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
@@ -158,12 +158,10 @@ TEST(HFTokenizerTest, TestDecode) {
   EXPECT_EQ(error, Error::Ok);
   // Test with tokens from our vocab: <s>, ▁Hello, ▁world!
   std::vector<uint64_t> tokens = {1, 8, 9}; // <s>, ▁Hello, ▁world!
-  for (auto i = 0; i < static_cast<int>(tokens.size()) - 1; ++i) {
-    auto result = tokenizer.decode(tokens[i], tokens[i + 1]);
-    EXPECT_TRUE(result.ok());
-    // The decoded strings should not be empty
-    EXPECT_FALSE(result.get().empty());
-  }
+  auto result = tokenizer.decode(tokens);
+  EXPECT_TRUE(result.ok());
+  // The ByteLevel decoder will convert '▁' back to space.
+  EXPECT_EQ(result.get(), "<s> Hello world!");
 }
 
 // Test that BPE merges are correctly parsed from legacy string format ("a b")

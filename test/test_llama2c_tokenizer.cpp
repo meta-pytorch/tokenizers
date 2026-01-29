@@ -43,7 +43,7 @@ TEST_F(Llama2cTokenizerTest, EncodeWithoutLoadFails) {
 }
 
 TEST_F(Llama2cTokenizerTest, DecodeWithoutLoadFails) {
-  auto result = tokenizer_->decode(0, 0);
+  auto result = tokenizer_->decode({0, 0});
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
@@ -89,8 +89,8 @@ TEST_F(Llama2cTokenizerTest, PieceToIdNotFoundFails) {
 TEST_F(Llama2cTokenizerTest, DecodeOutOfRangeFails) {
   Error res = tokenizer_->load(modelPath_.c_str());
   EXPECT_EQ(res, Error::Ok);
-  auto result =
-      tokenizer_->decode(0, static_cast<uint64_t>(tokenizer_->vocab_size()));
+  auto result = tokenizer_->decode(
+      {0, static_cast<uint64_t>(tokenizer_->vocab_size())});
   EXPECT_EQ(result.error(), Error::OutOfRange);
 }
 

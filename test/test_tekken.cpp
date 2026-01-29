@@ -204,21 +204,16 @@ TEST_F(TekkenTest, TestDecode) {
   auto encoded = tokenizer_->encode(original, 0, 0);
   EXPECT_EQ(encoded.error(), Error::Ok);
 
-  // Test decode token by token
   auto tokens = encoded.get();
-  std::string decoded_full = "";
-
-  for (size_t i = 0; i < tokens.size(); ++i) {
-    uint64_t prev_token = (i == 0) ? 0 : tokens[i - 1];
-    auto decoded = tokenizer_->decode(prev_token, tokens[i]);
-    EXPECT_EQ(decoded.error(), Error::Ok);
-    decoded_full += decoded.get();
-  }
+  auto decoded = tokenizer_->decode(tokens);
+  EXPECT_EQ(decoded.error(), Error::Ok);
+  std::string decoded_full = decoded.get();
 
   // The decoded text should match the original
   // Note: there might be minor differences in whitespace handling
   std::cout << "Original: '" << original << "'" << std::endl;
   std::cout << "Decoded:  '" << decoded_full << "'" << std::endl;
+  EXPECT_EQ(original, decoded_full);
 }
 
 TEST_F(TekkenTest, TestVersion) {

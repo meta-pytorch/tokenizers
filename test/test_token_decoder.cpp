@@ -16,62 +16,79 @@ namespace tokenizers {
 TEST(ReplaceTokenDecoderTest, TestBasicReplace) {
   ReplaceTokenDecoder decoder("▁", " ");
 
-  EXPECT_EQ(decoder.decode("▁Hello"), " Hello");
-  EXPECT_EQ(decoder.decode("▁world!"), " world!");
-  EXPECT_EQ(decoder.decode("Hello▁world"), "Hello world");
-  EXPECT_EQ(decoder.decode("no_replacement"), "no_replacement");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"▁Hello"})[0], " Hello");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"▁world!"})[0], " world!");
+  EXPECT_EQ(
+      decoder.decode(std::vector<std::string>{"Hello▁world"})[0],
+      "Hello world");
+  EXPECT_EQ(
+      decoder.decode(std::vector<std::string>{"no_replacement"})[0],
+      "no_replacement");
 }
 
 TEST(ReplaceTokenDecoderTest, TestMultipleReplacements) {
   ReplaceTokenDecoder decoder("▁", " ");
 
-  EXPECT_EQ(decoder.decode("▁Hello▁world▁!"), " Hello world !");
+  EXPECT_EQ(
+      decoder.decode(std::vector<std::string>{"▁Hello▁world▁!"})[0],
+      " Hello world !");
 }
 
 TEST(ReplaceTokenDecoderTest, TestEmptyPattern) {
   ReplaceTokenDecoder decoder("", "X");
 
   // Empty pattern should not cause infinite loop
-  EXPECT_EQ(decoder.decode("test"), "test");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"test"})[0], "test");
 }
 
 // Test ByteFallbackTokenDecoder
 TEST(ByteFallbackTokenDecoderTest, TestValidHexTokens) {
   ByteFallbackTokenDecoder decoder;
 
-  EXPECT_EQ(decoder.decode("<0x41>"), "A"); // 0x41 = 65 = 'A'
-  EXPECT_EQ(decoder.decode("<0x42>"), "B"); // 0x42 = 66 = 'B'
-  EXPECT_EQ(decoder.decode("<0x20>"), " "); // 0x20 = 32 = space
-  EXPECT_EQ(decoder.decode("<0x00>"), std::string(1, '\0')); // null byte
+  EXPECT_EQ(
+      decoder.decode(std::vector<std::string>{"<0x41>"})[0],
+      "A"); // 0x41 = 65 = 'A'
+  EXPECT_EQ(
+      decoder.decode(std::vector<std::string>{"<0x42>"})[0],
+      "B"); // 0x42 = 66 = 'B'
+  EXPECT_EQ(
+      decoder.decode(std::vector<std::string>{"<0x20>"})[0],
+      " "); // 0x20 = 32 = space
+  EXPECT_EQ(
+      decoder.decode(std::vector<std::string>{"<0x00>"})[0],
+      std::string(1, '\0')); // null byte
 }
 
 TEST(ByteFallbackTokenDecoderTest, TestInvalidHexTokens) {
   ByteFallbackTokenDecoder decoder;
 
   // Invalid format - should return original token
-  EXPECT_EQ(decoder.decode("<0xGG>"), "<0xGG>");
-  EXPECT_EQ(decoder.decode("<0x>"), "<0x>");
-  EXPECT_EQ(decoder.decode("0x41>"), "0x41>");
-  EXPECT_EQ(decoder.decode("<0x41"), "<0x41");
-  EXPECT_EQ(decoder.decode("regular_token"), "regular_token");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"<0xGG>"})[0], "<0xGG>");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"<0x>"})[0], "<0x>");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"0x41>"})[0], "0x41>");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"<0x41"})[0], "<0x41");
+  EXPECT_EQ(
+      decoder.decode(std::vector<std::string>{"regular_token"})[0],
+      "regular_token");
 }
 
 TEST(ByteFallbackTokenDecoderTest, TestOutOfRangeValues) {
   ByteFallbackTokenDecoder decoder;
 
   // Values > 255 should return original token
-  EXPECT_EQ(decoder.decode("<0x100>"), "<0x100>");
-  EXPECT_EQ(decoder.decode("<0xFFFF>"), "<0xFFFF>");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"<0x100>"})[0], "<0x100>");
+  EXPECT_EQ(
+      decoder.decode(std::vector<std::string>{"<0xFFFF>"})[0], "<0xFFFF>");
 }
 
 // Test FuseTokenDecoder
 TEST(FuseTokenDecoderTest, TestPassthrough) {
   FuseTokenDecoder decoder;
 
-  EXPECT_EQ(decoder.decode("test"), "test");
-  EXPECT_EQ(decoder.decode("▁Hello"), "▁Hello");
-  EXPECT_EQ(decoder.decode("<0x41>"), "<0x41>");
-  EXPECT_EQ(decoder.decode(""), "");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"test"})[0], "test");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"▁Hello"})[0], "▁Hello");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"<0x41>"})[0], "<0x41>");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{""})[0], "");
 }
 
 // Test SequenceTokenDecoder
@@ -79,7 +96,8 @@ TEST(SequenceTokenDecoderTest, TestEmptySequence) {
   std::vector<TokenDecoder::Ptr> decoders;
   SequenceTokenDecoder sequence_decoder(std::move(decoders));
 
-  EXPECT_EQ(sequence_decoder.decode("test"), "test");
+  EXPECT_EQ(
+      sequence_decoder.decode(std::vector<std::string>{"test"})[0], "test");
 }
 
 TEST(SequenceTokenDecoderTest, TestSingleDecoder) {
@@ -88,7 +106,8 @@ TEST(SequenceTokenDecoderTest, TestSingleDecoder) {
 
   SequenceTokenDecoder sequence_decoder(std::move(decoders));
 
-  EXPECT_EQ(sequence_decoder.decode("▁Hello"), " Hello");
+  EXPECT_EQ(
+      sequence_decoder.decode(std::vector<std::string>{"▁Hello"})[0], " Hello");
 }
 
 TEST(SequenceTokenDecoderTest, TestMultipleDecoders) {
@@ -106,10 +125,16 @@ TEST(SequenceTokenDecoderTest, TestMultipleDecoders) {
   SequenceTokenDecoder sequence_decoder(std::move(decoders));
 
   // Test cases
-  EXPECT_EQ(sequence_decoder.decode("▁Hello"), " Hello");
-  EXPECT_EQ(sequence_decoder.decode("▁world!"), " world!");
-  EXPECT_EQ(sequence_decoder.decode("<0x41>"), "A");
-  EXPECT_EQ(sequence_decoder.decode("normal_token"), "normal_token");
+  EXPECT_EQ(
+      sequence_decoder.decode(std::vector<std::string>{"▁Hello"})[0], " Hello");
+  EXPECT_EQ(
+      sequence_decoder.decode(std::vector<std::string>{"▁world!"})[0],
+      " world!");
+  EXPECT_EQ(
+      sequence_decoder.decode(std::vector<std::string>{"<0x41>"})[0], "A");
+  EXPECT_EQ(
+      sequence_decoder.decode(std::vector<std::string>{"normal_token"})[0],
+      "normal_token");
 }
 
 TEST(SequenceTokenDecoderTest, TestComplexSequence) {
@@ -126,8 +151,12 @@ TEST(SequenceTokenDecoderTest, TestComplexSequence) {
 
   SequenceTokenDecoder sequence_decoder(std::move(decoders));
 
-  EXPECT_EQ(sequence_decoder.decode("Hello_world"), "Hello world");
-  EXPECT_EQ(sequence_decoder.decode("▁test_token"), " test token");
+  EXPECT_EQ(
+      sequence_decoder.decode(std::vector<std::string>{"Hello_world"})[0],
+      "Hello world");
+  EXPECT_EQ(
+      sequence_decoder.decode(std::vector<std::string>{"▁test_token"})[0],
+      " test token");
 }
 
 // Test TokenDecoderConfig parsing and creation
@@ -143,7 +172,7 @@ TEST(TokenDecoderConfigTest, TestReplaceConfig) {
   EXPECT_EQ(decoder_config.replace_content, " ");
 
   auto decoder = decoder_config.create();
-  EXPECT_EQ(decoder->decode("▁Hello"), " Hello");
+  EXPECT_EQ(decoder->decode(std::vector<std::string>{"▁Hello"})[0], " Hello");
 }
 
 TEST(TokenDecoderConfigTest, TestSequenceConfig) {
@@ -161,8 +190,7 @@ TEST(TokenDecoderConfigTest, TestSequenceConfig) {
   EXPECT_EQ(decoder_config.sequence_decoders.size(), 3);
 
   auto decoder = decoder_config.create();
-  EXPECT_EQ(decoder->decode("▁Hello"), " Hello");
-  EXPECT_EQ(decoder->decode("<0x41>"), "A");
+  EXPECT_EQ(decoder->decode(std::vector<std::string>{"▁Hello"})[0], " Hello");
+  EXPECT_EQ(decoder->decode(std::vector<std::string>{"<0x41>"})[0], "A");
 }
-
 } // namespace tokenizers

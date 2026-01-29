@@ -70,7 +70,7 @@ TEST_F(TiktokenTest, TestEncodeWithoutLoad) {
 
 TEST_F(TiktokenTest, TestDecodeWithoutLoad) {
   Tiktoken tokenizer;
-  auto result = tokenizer.decode(0, 0);
+  auto result = tokenizer.decode({0, 0});
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
@@ -102,13 +102,10 @@ TEST_F(TiktokenTest, TestEncode) {
 TEST_F(TiktokenTest, TestDecode) {
   Error res = tokenizer_->load(modelPath_.c_str());
   EXPECT_EQ(res, Error::Ok);
-  std::vector<std::string> expected = {"<|begin_of_text|>", "hello", " world"};
   std::vector<uint64_t> tokens = {128000, 15339, 1917};
-  for (size_t i = 0; i < tokens.size(); i++) {
-    Result<std::string> out = tokenizer_->decode(0, tokens[i]);
-    EXPECT_EQ(out.error(), Error::Ok);
-    EXPECT_EQ(out.get(), expected[i]);
-  }
+  Result<std::string> out = tokenizer_->decode(tokens);
+  EXPECT_EQ(out.error(), Error::Ok);
+  EXPECT_EQ(out.get(), "<|begin_of_text|>hello world");
 }
 
 TEST_F(TiktokenTest, TestIdToPiece) {
@@ -139,7 +136,7 @@ TEST_F(TiktokenTest, TokenizerDecodeOutOfRangeFails) {
   EXPECT_EQ(res, Error::Ok);
   // The vocab size is 128256, addes 256 just so the token is out of vocab
   // range.
-  Result<std::string> out = tokenizer_->decode(0, 128256 + 256);
+  Result<std::string> out = tokenizer_->decode({0, 128256 + 256});
   EXPECT_EQ(out.error(), Error::DecodeFailure);
 }
 
