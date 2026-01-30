@@ -9,28 +9,29 @@
 
 #include <gtest/gtest.h>
 #include <pytorch/tokenizers/token_decoder.h>
+#include <unicode.h>
 
 namespace tokenizers {
 
 // Test ReplaceTokenDecoder
 TEST(ReplaceTokenDecoderTest, TestBasicReplace) {
-  ReplaceTokenDecoder decoder("▁", " ");
+  ReplaceTokenDecoder decoder("_", " ");
 
-  EXPECT_EQ(decoder.decode(std::vector<std::string>{"▁Hello"})[0], " Hello");
-  EXPECT_EQ(decoder.decode(std::vector<std::string>{"▁world!"})[0], " world!");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"_Hello"})[0], " Hello");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"_world!"})[0], " world!");
   EXPECT_EQ(
-      decoder.decode(std::vector<std::string>{"Hello▁world"})[0],
+      decoder.decode(std::vector<std::string>{"Hello_world"})[0],
       "Hello world");
   EXPECT_EQ(
       decoder.decode(std::vector<std::string>{"no_replacement"})[0],
-      "no_replacement");
+      "no replacement");
 }
 
 TEST(ReplaceTokenDecoderTest, TestMultipleReplacements) {
-  ReplaceTokenDecoder decoder("▁", " ");
+  ReplaceTokenDecoder decoder("_", " ");
 
   EXPECT_EQ(
-      decoder.decode(std::vector<std::string>{"▁Hello▁world▁!"})[0],
+      decoder.decode(std::vector<std::string>{"_Hello_world_!"})[0],
       " Hello world !");
 }
 
@@ -86,7 +87,7 @@ TEST(FuseTokenDecoderTest, TestPassthrough) {
   FuseTokenDecoder decoder;
 
   EXPECT_EQ(decoder.decode(std::vector<std::string>{"test"})[0], "test");
-  EXPECT_EQ(decoder.decode(std::vector<std::string>{"▁Hello"})[0], "▁Hello");
+  EXPECT_EQ(decoder.decode(std::vector<std::string>{"_Hello"})[0], "_Hello");
   EXPECT_EQ(decoder.decode(std::vector<std::string>{"<0x41>"})[0], "<0x41>");
   EXPECT_EQ(decoder.decode(std::vector<std::string>{""})[0], "");
 }
@@ -102,19 +103,19 @@ TEST(SequenceTokenDecoderTest, TestEmptySequence) {
 
 TEST(SequenceTokenDecoderTest, TestSingleDecoder) {
   std::vector<TokenDecoder::Ptr> decoders;
-  decoders.push_back(TokenDecoder::Ptr(new ReplaceTokenDecoder("▁", " ")));
+  decoders.push_back(TokenDecoder::Ptr(new ReplaceTokenDecoder("_", " ")));
 
   SequenceTokenDecoder sequence_decoder(std::move(decoders));
 
   EXPECT_EQ(
-      sequence_decoder.decode(std::vector<std::string>{"▁Hello"})[0], " Hello");
+      sequence_decoder.decode(std::vector<std::string>{"_Hello"})[0], " Hello");
 }
 
 TEST(SequenceTokenDecoderTest, TestMultipleDecoders) {
   std::vector<TokenDecoder::Ptr> decoders;
 
-  // Add Replace decoder to replace ▁ with space
-  decoders.push_back(TokenDecoder::Ptr(new ReplaceTokenDecoder("▁", " ")));
+  // Add Replace decoder to replace _ with space
+  decoders.push_back(TokenDecoder::Ptr(new ReplaceTokenDecoder("_", " ")));
 
   // Add ByteFallback decoder
   decoders.push_back(TokenDecoder::Ptr(new ByteFallbackTokenDecoder()));
@@ -126,15 +127,15 @@ TEST(SequenceTokenDecoderTest, TestMultipleDecoders) {
 
   // Test cases
   EXPECT_EQ(
-      sequence_decoder.decode(std::vector<std::string>{"▁Hello"})[0], " Hello");
+      sequence_decoder.decode(std::vector<std::string>{"_Hello"})[0], " Hello");
   EXPECT_EQ(
-      sequence_decoder.decode(std::vector<std::string>{"▁world!"})[0],
+      sequence_decoder.decode(std::vector<std::string>{"_world!"})[0],
       " world!");
   EXPECT_EQ(
       sequence_decoder.decode(std::vector<std::string>{"<0x41>"})[0], "A");
   EXPECT_EQ(
       sequence_decoder.decode(std::vector<std::string>{"normal_token"})[0],
-      "normal_token");
+      "normal token");
 }
 
 TEST(SequenceTokenDecoderTest, TestComplexSequence) {
@@ -143,8 +144,8 @@ TEST(SequenceTokenDecoderTest, TestComplexSequence) {
   // First replace underscores with spaces
   decoders.push_back(TokenDecoder::Ptr(new ReplaceTokenDecoder("_", " ")));
 
-  // Then replace ▁ with spaces
-  decoders.push_back(TokenDecoder::Ptr(new ReplaceTokenDecoder("▁", " ")));
+  // Then replace _ with spaces
+  decoders.push_back(TokenDecoder::Ptr(new ReplaceTokenDecoder("_", " ")));
 
   // Then handle byte fallback
   decoders.push_back(TokenDecoder::Ptr(new ByteFallbackTokenDecoder()));
@@ -155,31 +156,31 @@ TEST(SequenceTokenDecoderTest, TestComplexSequence) {
       sequence_decoder.decode(std::vector<std::string>{"Hello_world"})[0],
       "Hello world");
   EXPECT_EQ(
-      sequence_decoder.decode(std::vector<std::string>{"▁test_token"})[0],
+      sequence_decoder.decode(std::vector<std::string>{"_test_token"})[0],
       " test token");
 }
 
 // Test TokenDecoderConfig parsing and creation
 TEST(TokenDecoderConfigTest, TestReplaceConfig) {
   nlohmann::json config = {
-      {"type", "Replace"}, {"pattern", {{"String", "▁"}}}, {"content", " "}};
+      {"type", "Replace"}, {"pattern", {{"String", "_"}}}, {"content", " "}};
 
   TokenDecoderConfig decoder_config;
   decoder_config.parse_json(config);
 
   EXPECT_EQ(decoder_config.type, "Replace");
-  EXPECT_EQ(decoder_config.replace_pattern, "▁");
+  EXPECT_EQ(decoder_config.replace_pattern, "_");
   EXPECT_EQ(decoder_config.replace_content, " ");
 
   auto decoder = decoder_config.create();
-  EXPECT_EQ(decoder->decode(std::vector<std::string>{"▁Hello"})[0], " Hello");
+  EXPECT_EQ(decoder->decode(std::vector<std::string>{"_Hello"})[0], " Hello");
 }
 
 TEST(TokenDecoderConfigTest, TestSequenceConfig) {
   nlohmann::json config = {
       {"type", "Sequence"},
       {"decoders",
-       {{{"type", "Replace"}, {"pattern", {{"String", "▁"}}}, {"content", " "}},
+       {{{"type", "Replace"}, {"pattern", {{"String", "_"}}}, {"content", " "}},
         {{"type", "ByteFallback"}},
         {{"type", "Fuse"}}}}};
 
@@ -190,7 +191,89 @@ TEST(TokenDecoderConfigTest, TestSequenceConfig) {
   EXPECT_EQ(decoder_config.sequence_decoders.size(), 3);
 
   auto decoder = decoder_config.create();
-  EXPECT_EQ(decoder->decode(std::vector<std::string>{"▁Hello"})[0], " Hello");
+  EXPECT_EQ(decoder->decode(std::vector<std::string>{"_Hello"})[0], " Hello");
   EXPECT_EQ(decoder->decode(std::vector<std::string>{"<0x41>"})[0], "A");
 }
+
+// Test StripTokenDecoder
+TEST(StripTokenDecoderTest, TestBasicStrip) {
+  StripTokenDecoder decoder("H", 1, 0); // Strip 'H' from start, 1 char max
+  std::vector<std::string> tokens = {"Hey", " friend!", "HHH"};
+  std::vector<std::string> expected = {"ey", " friend!", "HH"};
+  EXPECT_EQ(decoder.decode(tokens), expected);
+
+  StripTokenDecoder decoder2("y", 0, 1); // Strip 'y' from end, 1 char max
+  tokens = {"Hey", " friend!"};
+  expected = {"He", " friend!"};
+  EXPECT_EQ(decoder2.decode(tokens), expected);
+}
+
+TEST(StripTokenDecoderTest, TestNoStrip) {
+  StripTokenDecoder decoder("X", 1, 1); // Try to strip 'X'
+  std::vector<std::string> tokens = {"Hello", "World"};
+  std::vector<std::string> expected = {"Hello", "World"};
+  EXPECT_EQ(decoder.decode(tokens), expected);
+
+  StripTokenDecoder decoder2("H", 0, 0); // No stripping
+  tokens = {"Hello", "World"};
+  expected = {"Hello", "World"};
+  EXPECT_EQ(decoder2.decode(tokens), expected);
+}
+
+TEST(StripTokenDecoderTest, TestFullStrip) {
+  StripTokenDecoder decoder("H", 3, 0); // Strip 'H' from start, 3 chars max
+  std::vector<std::string> tokens = {"HHH"};
+  std::vector<std::string> expected = {""};
+  EXPECT_EQ(decoder.decode(tokens), expected);
+
+  StripTokenDecoder decoder2("H", 1, 1); // Strip 'H' from start and end
+  tokens = {"HHH"};
+  expected = {"H"};
+  EXPECT_EQ(decoder2.decode(tokens), expected);
+}
+
+TEST(StripTokenDecoderTest, TestMixedContent) {
+  StripTokenDecoder decoder(" ", 1, 1); // Strip spaces from start and end
+  std::vector<std::string> tokens = {" Hello World ", "  TrimMe  "};
+  std::vector<std::string> expected = {"Hello World", " TrimMe "};
+  EXPECT_EQ(decoder.decode(tokens), expected);
+
+  StripTokenDecoder decoder2("H", 5, 5); // Strip 'H's from start and end
+  tokens = {"HHHHelloHHH", "HWorldH"};
+  expected = {"ello", "World"};
+  EXPECT_EQ(decoder2.decode(tokens), expected);
+}
+
+TEST(StripTokenDecoderTest, TestUnicodeContent) {
+  // Test with a multi-byte character for content
+  StripTokenDecoder decoder("_", 1, 0); // Strip '_' from start, 1 char max
+  std::vector<std::string> tokens = {"_Hello", "__World"};
+  std::vector<std::string> expected = {"Hello", "_World"};
+  EXPECT_EQ(decoder.decode(tokens), expected);
+
+  // Test stripping from end with Unicode
+  StripTokenDecoder decoder2("∎", 0, 1); // Strip '∎' from end, 1 char max
+  tokens = {"Hello∎", "World∎∎"};
+  expected = {"Hello", "World∎"};
+  EXPECT_EQ(decoder2.decode(tokens), expected);
+}
+
+TEST(TokenDecoderConfigTest, TestStripConfig) {
+  nlohmann::json config = {
+      {"type", "Strip"}, {"content", "_"}, {"start", 1}, {"stop", 0}};
+
+  TokenDecoderConfig decoder_config;
+  decoder_config.parse_json(config);
+
+  EXPECT_EQ(decoder_config.type, "Strip");
+  EXPECT_EQ(decoder_config.strip_content, "_");
+  EXPECT_EQ(decoder_config.strip_start, 1);
+  EXPECT_EQ(decoder_config.strip_stop, 0);
+
+  auto decoder = decoder_config.create();
+  std::vector<std::string> tokens = {"_Hello", "__World"};
+  std::vector<std::string> expected = {"Hello", "_World"};
+  EXPECT_EQ(decoder->decode(tokens), expected);
+}
+
 } // namespace tokenizers
