@@ -186,8 +186,10 @@ class HFTokenizer : public detail::BPETokenizerBase {
 
   Result<std::vector<uint64_t>> encode(
       const std::string& input,
-      int8_t bos = -1,
-      int8_t eos = -1) const;
+      int8_t bos = 0,
+      int8_t eos = 0) const override;
+
+  using BPETokenizerBase::decode;
 
   Result<std::string> decode(
       const std::vector<uint64_t>& tokens,
@@ -238,6 +240,7 @@ class HFTokenizer : public detail::BPETokenizerBase {
   std::optional<detail::TokenMap>
       merge_ranks_; // Pre-computed merge ranks for BPE
   bool byte_fallback_ = false;
+  bool unk_token_is_configured_ = false;
 };
 
 } // namespace tokenizers

@@ -110,13 +110,6 @@ HFTokenizer::encode(const std::string& input, int8_t bos, int8_t eos) const {
   bool add_special = (bos > 0 || eos > 0);
   if (_postprocessor) {
     tokens = _postprocessor->process(tokens, add_special);
-  } else {
-    for (auto i = 0; i < bos; ++i) {
-      tokens.insert(tokens.begin(), bos_tok_);
-    }
-    for (auto i = 0; i < eos; ++i) {
-      tokens.push_back(eos_tok_);
-    }
   }
 
   return tokens;
@@ -197,7 +190,10 @@ Error HFTokenizer::_encode(
 
 void HFTokenizer::_decode(const std::string& input, std::string& ret) const {
   if (_decoder) {
-    ret += _decoder->decode(input);
+    auto result = _decoder->decode({input});
+    for (auto& piece : result) {
+      ret += piece;
+    }
   } else {
     ret += input;
   }

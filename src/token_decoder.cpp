@@ -9,6 +9,7 @@
 
 #include <pytorch/tokenizers/token_decoder.h>
 
+#include <pytorch/tokenizers/log.h>
 // Standard
 #include <cstdarg>
 
@@ -118,22 +119,22 @@ static std::string format(const char* fmt, ...) {
 
 } // namespace
 
-std::string ByteLevelTokenDecoder::decode(const std::string& token) const {
-  // This is borrowed and lightly tweaked from llama.cpp
-  // CITE:
-  // https://github.com/ggerganov/llama.cpp/blob/master/src/llama-vocab.cpp#L1755
-  std::string decoded_text;
-  // TODO: This could be more efficient since what we really need is a string
-  //  const ref.
-  const auto cpts = unicode_cpts_from_utf8(token);
-  for (const auto cpt : cpts) {
-    const auto utf8 = unicode_cpt_to_utf8(cpt);
-    try {
-      decoded_text += unicode_utf8_to_byte(utf8);
-    } catch (const std::out_of_range& /*e*/) {
-      decoded_text += "[UNK_BYTE_0x";
-      for (const auto c : utf8) {
-        decoded_text += format("%02x", (uint8_t)c);
+std::vector<std::string> ByteLevelTokenDecoder::decode(
+    const std::vector<std::string>& tokens) const {
+  std::vector<uint8_t> all_bytes;
+
+  for (const auto& token : tokens) {
+    std::vector<uint8_t> current_token_bytes;
+    bool all_chars_are_bytes = true;
+
+    const auto cpts = unicode_cpts_from_utf8(token);
+    for (const auto cpt : cpts) {
+      const auto utf8 = unicode_cpt_to_utf8(cpt);
+      try {
+        current_token_bytes.push_back(unicode_utf8_to_byte(utf8));
+      } catch (const std::out_of_range& /*e*/) {
+        all_chars_are_bytes = false;
+        break;
       }
     }
 
@@ -147,7 +148,8 @@ std::string ByteLevelTokenDecoder::decode(const std::string& token) const {
     }
   }
 
-  return decoded_text;
+  std::string final_string(all_bytes.begin(), all_bytes.end());
+  return {final_string};
 }
 
 // ReplaceTokenDecoder ////////////////////////////////////////////////////////
@@ -157,39 +159,53 @@ ReplaceTokenDecoder::ReplaceTokenDecoder(
     const std::string& content)
     : pattern_(pattern), content_(content) {}
 
-std::string ReplaceTokenDecoder::decode(const std::string& token) const {
-  // Guard against empty pattern to prevent infinite loop
-  if (pattern_.empty()) {
-    return token;
-  }
+std::vector<std::string> ReplaceTokenDecoder::decode(
+    const std::vector<std::string>& tokens) const {
+  std::vector<std::string> decoded_tokens;
+  decoded_tokens.reserve(tokens.size());
+  for (const auto& token : tokens) {
+    // Guard against empty pattern to prevent infinite loop
+    if (pattern_.empty()) {
+      decoded_tokens.push_back(token);
+      continue;
+    }
 
-  std::string result = token;
-  size_t pos = 0;
-  while ((pos = result.find(pattern_, pos)) != std::string::npos) {
-    result.replace(pos, pattern_.length(), content_);
-    pos += content_.length();
+    std::string result = token;
+    size_t pos = 0;
+    while ((pos = result.find(pattern_, pos)) != std::string::npos) {
+      result.replace(pos, pattern_.length(), content_);
+      pos += content_.length();
+    }
+    decoded_tokens.push_back(result);
   }
-  return result;
+  return decoded_tokens;
 }
 
 // ByteFallbackTokenDecoder ///////////////////////////////////////////////////
 
-std::string ByteFallbackTokenDecoder::decode(const std::string& token) const {
-  // ByteFallback handles tokens that represent individual bytes
-  // For tokens that start with <0x and end with >, extract the hex value
-  if (token.length() >= 5 && token.substr(0, 3) == "<0x" &&
-      token.back() == '>') {
-    std::string hex_str = token.substr(3, token.length() - 4);
-    try {
-      unsigned long byte_val = std::stoul(hex_str, nullptr, 16);
-      if (byte_val <= 255) {
-        return std::string(1, static_cast<char>(byte_val));
+std::vector<std::string> ByteFallbackTokenDecoder::decode(
+    const std::vector<std::string>& tokens) const {
+  std::vector<std::string> decoded_tokens;
+  decoded_tokens.reserve(tokens.size());
+  for (const auto& token : tokens) {
+    // ByteFallback handles tokens that represent individual bytes
+    // For tokens that start with <0x and end with >, extract the hex value
+    if (token.length() >= 5 && token.substr(0, 3) == "<0x" &&
+        token.back() == '>') {
+      std::string hex_str = token.substr(3, token.length() - 4);
+      try {
+        unsigned long byte_val = std::stoul(hex_str, nullptr, 16);
+        if (byte_val <= 255) {
+          decoded_tokens.push_back(std::string(1, static_cast<char>(byte_val)));
+          continue;
+        }
+      } catch (const std::exception&) {
+        // Fall through to return original token
       }
-    } catch (const std::exception&) {
-      // Fall through to return original token
     }
+    decoded_tokens.push_back(token);
   }
-  return token;
+  return decoded_tokens;
 }
 
 // StripTokenDecoder //////////////////////////////////////////////////////////
@@ -232,8 +248,7 @@ std::vector<std::string> StripTokenDecoder::decode(
 
     size_t stop_cut = total_cpts;
     // Strip from stop
-    // Iterate over code points up to stop_ or until stop_cut_cpts reaches
-    // start_cut_cpts
+    // Iterate over code points up to stop_ or until stop_cut_cpts reaches start_cut_cpts
     for (size_t i = 0; i < stop_ && stop_cut > start_cut; ++i) {
       size_t index = total_cpts - 1 - i;
       if (cpts[index] == content_) {
@@ -262,7 +277,7 @@ std::vector<std::string> FuseTokenDecoder::decode(
   // Fuse decoder typically just returns the token as-is
   // The actual "fusing" happens at a higher level when multiple tokens are
   // combined
-  return token;
+  return tokens;
 }
 
 // SequenceTokenDecoder ///////////////////////////////////////////////////////
@@ -271,12 +286,13 @@ SequenceTokenDecoder::SequenceTokenDecoder(
     std::vector<TokenDecoder::Ptr> decoders)
     : decoders_(std::move(decoders)) {}
 
-std::string SequenceTokenDecoder::decode(const std::string& token) const {
-  std::string result = token;
+std::vector<std::string> SequenceTokenDecoder::decode(
+    const std::vector<std::string>& tokens) const {
+  std::vector<std::string> results = tokens;
   for (const auto& decoder : decoders_) {
-    result = decoder->decode(result);
+    results = decoder->decode(results);
   }
-  return result;
+  return results;
 }
 
 } // end  namespace tokenizers

@@ -142,26 +142,26 @@ TEST(HFTokenizerTest, TestEncode) {
   auto error = tokenizer.load(path);
   EXPECT_EQ(error, Error::Ok);
   std::string text = "Hello world!";
-  auto result = tokenizer.encode(text, /*bos*/ 1, /*eos*/ 0);
+  auto result = tokenizer.encode(text, /*bos*/ 1, /*eos*/ 1);
   EXPECT_TRUE(result.ok());
   // Based on our test tokenizer vocab:
   // "Hello world!" should tokenize to something like [1, 8, 9] or [1, 4, 5, 6,
   // 7] depending on how the BPE merges work
   EXPECT_GT(result.get().size(), 0);
-  EXPECT_EQ(result.get()[0], 0); // BOS token (default BOS ID)
+  EXPECT_EQ(result.get()[0], 4); // First token 'H' from "Hello"
 }
 
 TEST(HFTokenizerTest, TestDecodeBatch) {
   HFTokenizer tokenizer;
-  auto path = _get_resource_path("test_hf_tokenizer.json");
+  auto path = _get_resource_path("hf_tokenizer_dir/");
   auto error = tokenizer.load(path);
   EXPECT_EQ(error, Error::Ok);
   // Test with tokens from our vocab: <s>, ▁Hello, ▁world!
   std::vector<uint64_t> tokens = {1, 8, 9}; // <s>, ▁Hello, ▁world!
-  auto result = tokenizer.decode(tokens);
+  auto result = tokenizer.decode(tokens, false);
   EXPECT_TRUE(result.ok());
-  // The ByteLevel decoder will convert '▁' back to space.
-  EXPECT_EQ(result.get(), "<s> Hello world!");
+
+  EXPECT_EQ(result.get(), "<s>▁Hello▁world!");
 }
 
 TEST(HFTokenizerTest, TestDecode) {
