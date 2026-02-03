@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_absl_vlog_is_on
+Description: Abseil absl_vlog_is_on library
+URL: https://abseil.io/
+Version: head
+Requires: absl_vlog_config_internal = head, absl_config = head, absl_core_headers = head, absl_strings = head
+Libs: -L${libdir}  
+Cflags: -I${includedir} -DNOMINMAX

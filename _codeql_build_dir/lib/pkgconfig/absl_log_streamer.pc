@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_log_streamer
+Description: Abseil log_streamer library
+URL: https://abseil.io/
+Version: head
+Requires: absl_config = head, absl_absl_log = head, absl_log_severity = head, absl_optional = head, absl_strings = head, absl_strings_internal = head, absl_utility = head
+Libs: -L${libdir}  
+Cflags: -I${includedir} -DNOMINMAX

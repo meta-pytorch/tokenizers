@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_log_internal_log_sink_set
+Description: Abseil log_internal_log_sink_set library
+URL: https://abseil.io/
+Version: head
+Requires: absl_base = head, absl_cleanup = head, absl_config = head, absl_core_headers = head, absl_log_internal_config = head, absl_log_internal_globals = head, absl_log_globals = head, absl_log_entry = head, absl_log_severity = head, absl_log_sink = head, absl_no_destructor = head, absl_raw_logging_internal = head, absl_synchronization = head, absl_span = head, absl_strings = head
+Libs: -L${libdir}  -labsl_log_internal_log_sink_set 
+Cflags: -I${includedir} -DNOMINMAX

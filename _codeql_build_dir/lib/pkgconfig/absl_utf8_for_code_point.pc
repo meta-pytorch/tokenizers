@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_utf8_for_code_point
+Description: Abseil utf8_for_code_point library
+URL: https://abseil.io/
+Version: head
+Requires: absl_config = head
+Libs: -L${libdir}  -labsl_utf8_for_code_point 
+Cflags: -I${includedir} -DNOMINMAX

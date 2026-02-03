@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_decode_rust_punycode
+Description: Abseil decode_rust_punycode library
+URL: https://abseil.io/
+Version: head
+Requires: absl_bounded_utf8_length_sequence = head, absl_config = head, absl_nullability = head, absl_utf8_for_code_point = head
+Libs: -L${libdir}  -labsl_decode_rust_punycode 
+Cflags: -I${includedir} -DNOMINMAX

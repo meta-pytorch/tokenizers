@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_log_sink
+Description: Abseil log_sink library
+URL: https://abseil.io/
+Version: head
+Requires: absl_config = head, absl_log_entry = head
+Libs: -L${libdir}  -labsl_log_sink 
+Cflags: -I${includedir} -DNOMINMAX

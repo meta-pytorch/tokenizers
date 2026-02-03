@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_log_flags
+Description: Abseil log_flags library
+URL: https://abseil.io/
+Version: head
+Requires: absl_config = head, absl_core_headers = head, absl_log_globals = head, absl_log_severity = head, absl_log_internal_config = head, absl_log_internal_flags = head, absl_flags = head, absl_flags_marshalling = head, absl_strings = head, absl_vlog_config_internal = head
+Libs: -L${libdir}  -labsl_log_flags 
+Cflags: -I${includedir} -DNOMINMAX

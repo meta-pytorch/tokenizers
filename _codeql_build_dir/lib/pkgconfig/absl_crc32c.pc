@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_crc32c
+Description: Abseil crc32c library
+URL: https://abseil.io/
+Version: head
+Requires: absl_crc_cpu_detect = head, absl_crc_internal = head, absl_non_temporal_memcpy = head, absl_config = head, absl_core_headers = head, absl_endian = head, absl_prefetch = head, absl_str_format = head, absl_strings = head
+Libs: -L${libdir}  -labsl_crc32c 
+Cflags: -I${includedir} -DNOMINMAX

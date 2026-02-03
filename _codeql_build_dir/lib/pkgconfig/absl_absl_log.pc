@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_absl_log
+Description: Abseil absl_log library
+URL: https://abseil.io/
+Version: head
+Requires: absl_log_internal_log_impl = head
+Libs: -L${libdir}  
+Cflags: -I${includedir} -DNOMINMAX

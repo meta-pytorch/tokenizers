@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_log_internal_format
+Description: Abseil log_internal_format library
+URL: https://abseil.io/
+Version: head
+Requires: absl_config = head, absl_core_headers = head, absl_log_internal_append_truncated = head, absl_log_internal_config = head, absl_log_internal_globals = head, absl_log_severity = head, absl_strings = head, absl_str_format = head, absl_time = head, absl_span = head
+Libs: -L${libdir}  -labsl_log_internal_format 
+Cflags: -I${includedir} -DNOMINMAX

@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_log_internal_nullguard
+Description: Abseil log_internal_nullguard library
+URL: https://abseil.io/
+Version: head
+Requires: absl_config = head, absl_core_headers = head
+Libs: -L${libdir}  -labsl_log_internal_nullguard 
+Cflags: -I${includedir} -DNOMINMAX

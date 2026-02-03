@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_tracing_internal
+Description: Abseil tracing_internal library
+URL: https://abseil.io/
+Version: head
+Requires: absl_base = head
+Libs: -L${libdir}  -labsl_tracing_internal 
+Cflags: -I${includedir} -DNOMINMAX

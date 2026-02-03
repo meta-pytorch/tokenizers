@@ -1,0 +1,1 @@
+/home/runner/work/tokenizers/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -Wall -fPIC  -Wno-attributes -fmacro-prefix-map=/home/runner/work/tokenizers/tokenizers/='' -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/spm_train.dir/link.d CMakeFiles/spm_train.dir/spm_train_main.cc.o -o spm_train  libsentencepiece.a libsentencepiece_train.a libsentencepiece.a

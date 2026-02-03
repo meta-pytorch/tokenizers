@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_log_internal_message
+Description: Abseil log_internal_message library
+URL: https://abseil.io/
+Version: head
+Requires: absl_base = head, absl_config = head, absl_core_headers = head, absl_errno_saver = head, absl_examine_stack = head, absl_inlined_vector = head, absl_log_internal_append_truncated = head, absl_log_internal_format = head, absl_log_internal_globals = head, absl_log_internal_proto = head, absl_log_internal_log_sink_set = head, absl_log_internal_nullguard = head, absl_log_globals = head, absl_log_entry = head, absl_log_severity = head, absl_log_sink = head, absl_log_sink_registry = head, absl_memory = head, absl_nullability = head, absl_raw_logging_internal = head, absl_span = head, absl_strerror = head, absl_strings = head, absl_time = head
+Libs: -L${libdir}  -labsl_log_internal_message 
+Cflags: -I${includedir} -DNOMINMAX

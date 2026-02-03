@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_low_level_hash
+Description: Abseil low_level_hash library
+URL: https://abseil.io/
+Version: head
+Requires: absl_config = head, absl_endian = head, absl_int128 = head, absl_prefetch = head
+Libs: -L${libdir}  -labsl_low_level_hash 
+Cflags: -I${includedir} -DNOMINMAX

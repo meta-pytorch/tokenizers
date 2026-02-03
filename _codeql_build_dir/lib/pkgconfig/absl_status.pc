@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: absl_status
+Description: Abseil status library
+URL: https://abseil.io/
+Version: head
+Requires: absl_atomic_hook = head, absl_config = head, absl_cord = head, absl_core_headers = head, absl_function_ref = head, absl_inlined_vector = head, absl_leak_check = head, absl_memory = head, absl_no_destructor = head, absl_nullability = head, absl_optional = head, absl_raw_logging_internal = head, absl_span = head, absl_stacktrace = head, absl_str_format = head, absl_strerror = head, absl_strings = head, absl_symbolize = head
+Libs: -L${libdir}  -labsl_status 
+Cflags: -I${includedir} -DNOMINMAX
