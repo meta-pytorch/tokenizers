@@ -151,7 +151,7 @@ TEST(HFTokenizerTest, TestEncode) {
   EXPECT_EQ(result.get()[0], 0); // BOS token (default BOS ID)
 }
 
-TEST(HFTokenizerTest, TestDecode) {
+TEST(HFTokenizerTest, TestDecodeBatch) {
   HFTokenizer tokenizer;
   auto path = _get_resource_path("test_hf_tokenizer.json");
   auto error = tokenizer.load(path);
@@ -164,6 +164,20 @@ TEST(HFTokenizerTest, TestDecode) {
   EXPECT_EQ(result.get(), "<s> Hello world!");
 }
 
+TEST(HFTokenizerTest, TestDecode) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("test_hf_tokenizer.json");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+  // Test with tokens from our vocab: <s>, ▁Hello, ▁world!
+  std::vector<uint64_t> tokens = {1, 8, 9}; // <s>, ▁Hello, ▁world!
+  for (auto i = 0; i < static_cast<int>(tokens.size()) - 1; ++i) {
+    auto result = tokenizer.decode(tokens[i], tokens[i + 1]);
+    EXPECT_TRUE(result.ok());
+    // The decoded strings should not be empty
+    EXPECT_FALSE(result.get().empty());
+  }
+}
 // Test that BPE merges are correctly parsed from legacy string format ("a b")
 // This is the standard HuggingFace tokenizer.json format
 TEST(HFTokenizerTest, TestBPEMergeLegacyFormat) {
