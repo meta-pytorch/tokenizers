@@ -66,6 +66,13 @@ TEST_F(RegexTest, InvalidUtf8PatternHandling) {
   Pcre2Regex regex;
   Error result = regex.compile(pattern_with_invalid_utf8);
   EXPECT_EQ(result, Error::Ok);
+
+  // Verify that the compiled regex can actually match text
+  const std::string text_with_same_sequence = "test\xC0\x80pattern here";
+  auto matches = regex.find_all(text_with_same_sequence);
+  ASSERT_EQ(matches.size(), 1);
+  EXPECT_EQ(matches[0].start, 0);
+  EXPECT_EQ(matches[0].end, 13); // Length of "test\xC0\x80pattern"
 }
 
 // Test complex pattern with negative lookahead that should fall back to PCRE2.
