@@ -279,7 +279,7 @@ std::vector<uint64_t> HFTokenizer::_byte_pair_merge(
       char_len = piece.size() - char_start;
 
     uint64_t token_id = func(char_start, char_start + char_len);
-    if (token_id == UINT64_MAX) {
+    if (token_id == UINT64_MAX) { // This is the sentinel for byte_fallback
       for (size_t j = 0; j < char_len; ++j) {
         char hex[7];
         snprintf(
@@ -293,15 +293,15 @@ std::vector<uint64_t> HFTokenizer::_byte_pair_merge(
         } else if (unk_token_is_configured_) {
           word.add(unk_tok_, 1);
         } else {
-          return {};
+          return {}; // Unhandled byte fallback
         }
       }
-    } else if (token_id == (UINT64_MAX - 1)) {
-      return {};
-    } else if (token_id != 0 || unk_token_is_configured_) {
-      word.add(token_id, char_len);
-    } else {
-      return {};
+    } else if (token_id == (UINT64_MAX - 1)) { // This is the sentinel for a
+                                               // generic err
+      return {}; // Return empty on error
+    } else { // If it's not a sentinel, it's a valid token_id (could be 0, for
+             // [UNK] oranother token)
+      word.add(token_id, char_len); // Add any valid token_id
     }
     i += char_len;
   }
