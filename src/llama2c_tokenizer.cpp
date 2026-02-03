@@ -131,29 +131,25 @@ Result<std::string> Llama2cTokenizer::id_to_piece(uint64_t token) const {
  * token.
  */
 Result<std::string> Llama2cTokenizer::decode(
-    const std::vector<uint64_t>& tokens,
+    uint64_t prev_token,
+    uint64_t token,
     bool skip_special_tokens) const {
   (void)skip_special_tokens;
-  std::string result_str;
-  for (size_t i = 0; i < tokens.size(); ++i) {
-    uint64_t token = tokens[i];
-    uint64_t prev_token = (i > 0) ? tokens[i - 1] : bos_tok_;
-    TK_CHECK_OK_OR_RETURN_ERROR(_decode_verify(token));
-    const char* piece = vocab_[token];
-    // following BOS token, sentencepiece decoder strips any leading
-    // whitespace
-    if (prev_token == bos_tok_ && piece[0] == ' ') {
-      piece++;
-    }
-    // careful, some tokens designate raw bytes, and look like e.g. '<0x01>'
-    // parse this and convert and return the actual byte
-    unsigned char byte_val;
-    if (sscanf(piece, "<0x%02hhX>", &byte_val) == 1) {
-      piece = (char*)byte_pieces_ + byte_val * 2;
-    }
-    result_str += piece;
+  TK_CHECK_OK_OR_RETURN_ERROR(_decode_verify(token));
+  const char* piece = vocab_[token];
+  // following BOS token, sentencepiece decoder strips any leading
+  // whitespace
+  if (prev_token == bos_tok_ && piece[0] == ' ') {
+    piece++;
   }
-  return result_str;
+  // careful, some tokens designate raw bytes, and look like e.g. '<0x01>'
+  // parse this and convert and return the actual byte
+  unsigned char byte_val;
+  if (sscanf(piece, "<0x%02hhX>", &byte_val) == 1) {
+    piece = (char*)byte_pieces_ + byte_val * 2;
+  }
+  std::string res(piece);
+  return res;
 }
 
 static int32_t

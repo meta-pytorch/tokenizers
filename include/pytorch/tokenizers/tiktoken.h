@@ -122,8 +122,7 @@ class Tiktoken : public detail::BPETokenizerBase {
       std::vector<uint64_t>& ret,
       uint64_t& last_piece_token_len) const override;
 
-  std::vector<std::string> _decode(
-      const std::vector<std::string>& pieces) const override;
+  void _decode(const std::string& input, std::string& ret) const override;
 
   detail::TokenMap _build_special_token_map(ssize_t num_base_tokens) const;
 

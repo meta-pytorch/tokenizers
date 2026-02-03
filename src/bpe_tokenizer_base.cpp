@@ -274,40 +274,34 @@ Result<uint64_t> BPETokenizerBase::piece_to_id(const std::string& text) const {
 }
 
 Result<std::string> BPETokenizerBase::decode(
-    const std::vector<uint64_t>& tokens,
+    uint64_t prev,
+    uint64_t cur,
     bool skip_special_tokens) const {
+  (void)prev;
   if (!initialized_) {
     return Error::Uninitialized;
   }
-  std::vector<std::string> pieces;
-  for (uint64_t token : tokens) {
-    std::string_view token_bytes;
-    auto regular_token_result = token_map_->tryGetString(token);
-    if (regular_token_result) { // Found in regular tokens
-      token_bytes = *regular_token_result;
-    } else { // Not a regular token, check if it's a special token
-      auto special_token_result = special_token_map_->tryGetString(token);
-      if (special_token_result) { // It's a special token
-        if (skip_special_tokens) {
-          continue;
-        }
-        token_bytes = *special_token_result; // Don't skip, use its string
-      } else { // Unknown token
-        TK_LOG(Error, "unknown token: %" PRIu64 "\n", token);
-        return Error::DecodeFailure;
+  std::string ret;
+
+  std::string_view token_bytes;
+  auto regular_token_result = token_map_->tryGetString(cur);
+  if (regular_token_result) { // Found in regular tokens
+    token_bytes = *regular_token_result;
+  } else { // Not a regular token, check if it's a special token
+    auto special_token_result = special_token_map_->tryGetString(cur);
+    if (special_token_result) { // It's a special token
+      if (skip_special_tokens) {
+        return std::string(""); // Skip it
       }
+      token_bytes = *special_token_result; // Don't skip, use its string
+    } else { // Unknown token
+      TK_LOG(Error, "unknown token: %" PRIu64 "\n", cur);
+      return Error::DecodeFailure;
     }
-    pieces.push_back(std::string(token_bytes));
   }
+  _decode(std::string(token_bytes), ret);
 
-  auto decoded_pieces = _decode(pieces); // virtual call
-
-  std::string result_str;
-  for (const auto& p : decoded_pieces) {
-    result_str += p;
-  }
-
-  return result_str;
+  return ret;
 }
 
 // ---- public end -------------------------------------------------------------

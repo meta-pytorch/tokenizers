@@ -77,7 +77,8 @@ class Tokenizer {
   encode(const std::string& input, int8_t bos = 0, int8_t eos = 0) const = 0;
 
   virtual Result<std::string> decode(
-      const std::vector<uint64_t>& tokens,
+      uint64_t prev_token,
+      uint64_t token,
       bool skip_special_tokens = false) const = 0;
 
   // getters

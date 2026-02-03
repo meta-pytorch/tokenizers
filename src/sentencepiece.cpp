@@ -96,39 +96,34 @@ Result<uint64_t> SPTokenizer::piece_to_id(const std::string& text) const {
  * token.
  */
 Result<std::string> SPTokenizer::decode(
-    const std::vector<uint64_t>& tokens,
+    uint64_t prev_token,
+    uint64_t token,
     bool skip_special_tokens) const {
   (void)skip_special_tokens; // Mark as unused
   if (!initialized_) {
     fprintf(stderr, "Tokenizer not initialized\n");
     return Error::Uninitialized;
   }
-  std::string result_str;
-  for (size_t i = 0; i < tokens.size(); ++i) {
-    uint64_t token = tokens[i];
-    uint64_t prev_token = (i > 0) ? tokens[i - 1] : bos_tok_;
-    // get rid of the control ids <s> and </s>
-    if (_processor->IsControl(token)) {
-      // NB: returning empty string doesn't work for some reason. It causes
-      // free(): invalid pointer error.
-      result_str += " ";
-      continue;
-    }
-
-    std::string result = absl::StrReplaceAll(
-        _processor->IdToPiece(token), {{kSpaceSymbol, " "}});
-
-    // following BOS token, sentencepiece decoder strips any leading
-    // whitespace
-    if (prev_token == bos_tok_ && result[0] == ' ') {
-      result = result.substr(1);
-    }
-
-    // handle <0x0A>
-    result = absl::StrReplaceAll(result, {{"<0x0A>", "\n"}});
-    result_str += result;
+  // get rid of the control ids <s> and </s>
+  if (_processor->IsControl(token)) {
+    // NB: returning empty string doesn't work for some reason. It causes
+    // free(): invalid pointer error.
+    return std::string(" ");
   }
-  return result_str;
+
+  std::string result =
+      absl::StrReplaceAll(_processor->IdToPiece(token), {{kSpaceSymbol, " "}});
+
+  // following BOS token, sentencepiece decoder strips any leading
+  // whitespace
+  if (prev_token == bos_tok_ && result[0] == ' ') {
+    result = result.substr(1);
+  }
+
+  // handle <0x0A>
+  result = absl::StrReplaceAll(result, {{"<0x0A>", "\n"}});
+
+  return result;
 }
 
 /**

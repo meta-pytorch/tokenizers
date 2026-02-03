@@ -129,9 +129,8 @@ Error Tiktoken::_encode(
   return Error::Ok;
 }
 
-std::vector<std::string> Tiktoken::_decode(
-    const std::vector<std::string>& pieces) const {
-  return pieces;
+void Tiktoken::_decode(const std::string& input, std::string& ret) const {
+  ret += input;
 }
 
 // -------------------------private method end-------------------------------

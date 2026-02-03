@@ -54,9 +54,8 @@ Error Tekken::_encode(
   return Error::Ok;
 }
 
-std::vector<std::string> Tekken::_decode(
-    const std::vector<std::string>& pieces) const {
-  return pieces;
+void Tekken::_decode(const std::string& input, std::string& ret) const {
+  ret += input;
 }
 
 std::string Tekken::_get_default_tekken_pattern() {
