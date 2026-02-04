@@ -153,7 +153,7 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
             return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
-          py::arg("skip_special_tokens") = false)
+          py::arg("skip_special_tokens") = false);
 
   // Bind Tiktoken
   py::class_<Tiktoken, Tokenizer>(m, "Tiktoken")
@@ -195,7 +195,7 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
             return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
-          py::arg("skip_special_tokens") = false)
+          py::arg("skip_special_tokens") = false);
 
   // Bind Llama2cTokenizer
   py::class_<Llama2cTokenizer, Tokenizer>(m, "Llama2cTokenizer")
@@ -226,7 +226,7 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
             return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
-          py::arg("skip_special_tokens") = false)
+          py::arg("skip_special_tokens") = false);
 
   // Bind SPTokenizer (SentencePiece)
   py::class_<SPTokenizer, Tokenizer>(m, "SPTokenizer")
@@ -258,7 +258,7 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
             return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
-          py::arg("skip_special_tokens") = false)
+          py::arg("skip_special_tokens") = false);
 
   // Bind Tekken tokenizer
   py::class_<Tekken, Tokenizer>(m, "Tekken")
