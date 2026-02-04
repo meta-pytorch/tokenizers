@@ -248,7 +248,8 @@ std::vector<std::string> StripTokenDecoder::decode(
 
     size_t stop_cut = total_cpts;
     // Strip from stop
-    // Iterate over code points up to stop_ or until stop_cut_cpts reaches start_cut_cpts
+    // Iterate over code points up to stop_ or until stop_cut_cpts reaches
+    // start_cut_cpts
     for (size_t i = 0; i < stop_ && stop_cut > start_cut; ++i) {
       size_t index = total_cpts - 1 - i;
       if (cpts[index] == content_) {
@@ -274,10 +275,11 @@ std::vector<std::string> StripTokenDecoder::decode(
 //  FuseTokenDecoder ///////////////////////////////////////////////////////
 std::vector<std::string> FuseTokenDecoder::decode(
     const std::vector<std::string>& tokens) const {
-  // Fuse decoder typically just returns the token as-is
-  // The actual "fusing" happens at a higher level when multiple tokens are
-  // combined
-  return tokens;
+  std::string fusedToken = "";
+  for (auto& token : tokens) {
+    fusedToken += token;
+  }
+  return {fusedToken};
 }
 
 // SequenceTokenDecoder ///////////////////////////////////////////////////////
