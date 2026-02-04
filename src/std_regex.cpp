@@ -26,13 +26,24 @@ Error StdRegex::compile(const std::string& pattern) {
 
 std::vector<Match> StdRegex::find_all(const std::string& text) const {
   std::vector<Match> result;
-  std::sregex_iterator iter(text.begin(), text.end(), regex_);
-  std::sregex_iterator end;
+  try {
+    std::sregex_iterator iter(text.begin(), text.end(), regex_);
+    std::sregex_iterator end;
 
-  for (; iter != end; ++iter) {
-    const auto& match = *iter;
-    size_t start = match.position(1);
-    result.push_back({start, start + match[1].length()});
+    for (; iter != end; ++iter) {
+      const auto& match = *iter;
+      size_t start = match.position(1);
+      result.push_back({start, start + match[1].length()});
+    }
+  } catch (const std::regex_error& e) {
+    // Catch regex errors (e.g., complexity errors) to prevent crashes
+    TK_LOG(
+        Error,
+        "std::regex matching error: %s (code: %d)",
+        e.what(),
+        static_cast<int>(e.code()));
+    // Return empty result on error
+    return result;
   }
 
   return result;

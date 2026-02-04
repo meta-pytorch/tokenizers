@@ -53,6 +53,28 @@ TEST_F(RegexTest, Pcre2Specific) {
       "example");
 }
 
+// Test that PCRE2 can handle patterns with invalid UTF-8 byte sequences
+// by retrying without UTF-8 validation. This is important for Qwen tokenizers
+// which contain patterns with byte sequences that aren't valid UTF-8.
+TEST_F(RegexTest, InvalidUtf8PatternHandling) {
+  // This pattern contains an invalid UTF-8 sequence (0xC0 0x80 is an overlong
+  // encoding of the null character, which is not valid UTF-8)
+  const std::string pattern_with_invalid_utf8 = "test\xC0\x80pattern";
+
+  // The pattern should compile successfully using PCRE2 without UTF-8
+  // validation
+  Pcre2Regex regex;
+  Error result = regex.compile(pattern_with_invalid_utf8);
+  EXPECT_EQ(result, Error::Ok);
+
+  // Verify that the compiled regex can actually match text
+  const std::string text_with_same_sequence = "test\xC0\x80pattern here";
+  auto matches = regex.find_all(text_with_same_sequence);
+  ASSERT_EQ(matches.size(), 1);
+  EXPECT_EQ(matches[0].start, 0);
+  EXPECT_EQ(matches[0].end, 13); // Length of "test\xC0\x80pattern"
+}
+
 // Test complex pattern with negative lookahead that should fall back to PCRE2.
 // This specific pattern is from the Qwen2.5 1.5B pretokenizer.
 // https://huggingface.co/Qwen/Qwen2.5-1.5B/raw/main/tokenizer.json
