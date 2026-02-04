@@ -167,20 +167,21 @@ TEST_F(PreTokenizerConfigTest, AllTypesFailureCases) {
 TEST_F(PreTokenizerConfigTest, ParseJson) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Sequence"},
-                            {"pretokenizers",
-                             json{
+                        .parse_json(
+                            json{
+                                {"type", "Sequence"},
+                                {"pretokenizers",
                                  json{
-                                     {"type", "Digits"},
-                                     {"individual_digits", true},
-                                 },
-                                 json{
-                                     {"type", "ByteLevel"},
-                                     {"add_prefix_space", false},
-                                 },
-                             }},
-                        })
+                                     json{
+                                         {"type", "Digits"},
+                                         {"individual_digits", true},
+                                     },
+                                     json{
+                                         {"type", "ByteLevel"},
+                                         {"add_prefix_space", false},
+                                     },
+                                 }},
+                            })
                         .create();
   assert_split_match(
       *ptok,
@@ -203,9 +204,10 @@ TEST_F(PreTokenizerConfigTest, ParseJson) {
 TEST_F(PreTokenizerConfigTest, ParseJsonOptionalKey) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Digits"},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Digits"},
+                            })
                         .create();
   assert_split_match(
       *ptok,
@@ -217,12 +219,13 @@ TEST_F(PreTokenizerConfigTest, Split) {
   PreTokenizerConfig config;
   const auto ptok =
       config
-          .parse_json(json{
-              {"type", "Split"},
-              {"pattern",
-               {{"Regex",
-                 R"((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+)"}}},
-          })
+          .parse_json(
+              json{
+                  {"type", "Split"},
+                  {"pattern",
+                   {{"Regex",
+                     R"((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+)"}}},
+              })
           .create();
   assert_split_match(*ptok, "Hello World", {"Hello", " World"});
 }
@@ -230,10 +233,11 @@ TEST_F(PreTokenizerConfigTest, Split) {
 TEST_F(PreTokenizerConfigTest, SplitWithStringPattern) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", " "}}},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", " "}}},
+                            })
                         .create();
   assert_split_match(*ptok, "Hello world!", {"Hello", "world!"});
 }
@@ -241,10 +245,11 @@ TEST_F(PreTokenizerConfigTest, SplitWithStringPattern) {
 TEST_F(PreTokenizerConfigTest, SplitWithStringPatternSpecialChars) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", "."}}},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", "."}}},
+                            })
                         .create();
   assert_split_match(*ptok, "Hello.world.test", {"Hello", "world", "test"});
 }
@@ -252,10 +257,11 @@ TEST_F(PreTokenizerConfigTest, SplitWithStringPatternSpecialChars) {
 TEST_F(PreTokenizerConfigTest, SplitWithStringPatternNoMatches) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", "xyz"}}},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", "xyz"}}},
+                            })
                         .create();
   assert_split_match(*ptok, "Hello world", {"Hello world"});
 }
@@ -263,10 +269,11 @@ TEST_F(PreTokenizerConfigTest, SplitWithStringPatternNoMatches) {
 TEST_F(PreTokenizerConfigTest, SplitWithRegexMetaCharacters) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", "+"}}},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", "+"}}},
+                            })
                         .create();
   assert_split_match(*ptok, "a+b+c", {"a", "b", "c"});
 }
@@ -274,10 +281,11 @@ TEST_F(PreTokenizerConfigTest, SplitWithRegexMetaCharacters) {
 TEST_F(PreTokenizerConfigTest, SplitWithRegexBrackets) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", "["}}},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", "["}}},
+                            })
                         .create();
   assert_split_match(*ptok, "a[b[c", {"a", "b", "c"});
 }
@@ -285,10 +293,11 @@ TEST_F(PreTokenizerConfigTest, SplitWithRegexBrackets) {
 TEST_F(PreTokenizerConfigTest, SplitEmptyInput) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", " "}}},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", " "}}},
+                            })
                         .create();
   assert_split_match(*ptok, "", {""});
 }
@@ -296,10 +305,11 @@ TEST_F(PreTokenizerConfigTest, SplitEmptyInput) {
 TEST_F(PreTokenizerConfigTest, SplitSingleCharacterInput) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", " "}}},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", " "}}},
+                            })
                         .create();
   assert_split_match(*ptok, "a", {"a"});
 }
@@ -307,12 +317,13 @@ TEST_F(PreTokenizerConfigTest, SplitSingleCharacterInput) {
 TEST_F(PreTokenizerConfigTest, SplitWithMergedWithPrevious) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", "-"}}},
-                            {"behavior", "MergedWithPrevious"},
-                            {"invert", false},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", "-"}}},
+                                {"behavior", "MergedWithPrevious"},
+                                {"invert", false},
+                            })
                         .create();
   // Example from docstring: "the-final--countdown" with delimiter "-"
   // -> ["the-", "final-", "-", "countdown"]
@@ -323,12 +334,13 @@ TEST_F(PreTokenizerConfigTest, SplitWithMergedWithPrevious) {
 TEST_F(PreTokenizerConfigTest, SplitWithMergedWithPreviousSpaces) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", " "}}},
-                            {"behavior", "MergedWithPrevious"},
-                            {"invert", false},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", " "}}},
+                                {"behavior", "MergedWithPrevious"},
+                                {"invert", false},
+                            })
                         .create();
   assert_split_match(*ptok, "Hello world test", {"Hello ", "world ", "test"});
 }
@@ -336,12 +348,13 @@ TEST_F(PreTokenizerConfigTest, SplitWithMergedWithPreviousSpaces) {
 TEST_F(PreTokenizerConfigTest, SplitWithMergedWithPreviousStartingDelimiter) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", "-"}}},
-                            {"behavior", "MergedWithPrevious"},
-                            {"invert", false},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", "-"}}},
+                                {"behavior", "MergedWithPrevious"},
+                                {"invert", false},
+                            })
                         .create();
   assert_split_match(*ptok, "-hello-world", {"-", "hello-", "world"});
 }
@@ -349,12 +362,13 @@ TEST_F(PreTokenizerConfigTest, SplitWithMergedWithPreviousStartingDelimiter) {
 TEST_F(PreTokenizerConfigTest, SplitWithMergedWithPreviousEndingDelimiter) {
   PreTokenizerConfig config;
   const auto ptok = config
-                        .parse_json(json{
-                            {"type", "Split"},
-                            {"pattern", {{"String", "-"}}},
-                            {"behavior", "MergedWithPrevious"},
-                            {"invert", false},
-                        })
+                        .parse_json(
+                            json{
+                                {"type", "Split"},
+                                {"pattern", {{"String", "-"}}},
+                                {"behavior", "MergedWithPrevious"},
+                                {"invert", false},
+                            })
                         .create();
   assert_split_match(*ptok, "hello-world-", {"hello-", "world-"});
 }
@@ -363,12 +377,13 @@ TEST_F(PreTokenizerConfigTest, SplitWithUnsupportedBehavior) {
   PreTokenizerConfig config;
   EXPECT_THROW(
       config
-          .parse_json(json{
-              {"type", "Split"},
-              {"pattern", {{"String", "-"}}},
-              {"behavior", "MergedWithNext"},
-              {"invert", false},
-          })
+          .parse_json(
+              json{
+                  {"type", "Split"},
+                  {"pattern", {{"String", "-"}}},
+                  {"behavior", "MergedWithNext"},
+                  {"invert", false},
+              })
           .create(),
       std::runtime_error);
 }
@@ -377,12 +392,13 @@ TEST_F(PreTokenizerConfigTest, SplitWithInvertTrue) {
   PreTokenizerConfig config;
   EXPECT_THROW(
       config
-          .parse_json(json{
-              {"type", "Split"},
-              {"pattern", {{"String", "-"}}},
-              {"behavior", "MergedWithPrevious"},
-              {"invert", true},
-          })
+          .parse_json(
+              json{
+                  {"type", "Split"},
+                  {"pattern", {{"String", "-"}}},
+                  {"behavior", "MergedWithPrevious"},
+                  {"invert", true},
+              })
           .create(),
       std::runtime_error);
 }

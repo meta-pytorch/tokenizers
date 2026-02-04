@@ -235,10 +235,10 @@ def detailed_comparison(cpp_tokenizer, py_tokenizer, test_cases):
     print("=" * 80)
     print(f"Total test cases: {total_tests}")
     print(
-        f"Exact token matches: {exact_matches} ({exact_matches/total_tests*100:.1f}%)"
+        f"Exact token matches: {exact_matches} ({exact_matches / total_tests * 100:.1f}%)"
     )
     print(
-        f"Perfect decode fidelity: {decode_matches} ({decode_matches/total_tests*100:.1f}%)"
+        f"Perfect decode fidelity: {decode_matches} ({decode_matches / total_tests * 100:.1f}%)"
     )
 
     return results
@@ -297,7 +297,7 @@ def test_conversation_patterns():
         for i, message in enumerate(conv["messages"]):
             total_messages += 1
             print(
-                f"Message {i+1}: '{message[:50]}{'...' if len(message) > 50 else ''}'"
+                f"Message {i + 1}: '{message[:50]}{'...' if len(message) > 50 else ''}'"
             )
 
             # Test both tokenizers
@@ -325,7 +325,7 @@ def test_conversation_patterns():
             print(f"  Match : {'✓' if decode_match else '✗'}")
 
     print(
-        f"\nConversation Summary: {decode_successes}/{total_messages} perfect decodes ({decode_successes/total_messages*100:.1f}%)"
+        f"\nConversation Summary: {decode_successes}/{total_messages} perfect decodes ({decode_successes / total_messages * 100:.1f}%)"
     )
 
 

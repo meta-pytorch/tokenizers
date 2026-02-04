@@ -21,7 +21,6 @@ from typing import (
 )
 
 import tiktoken
-
 from tiktoken.load import load_tiktoken_bpe
 
 from .constants import CL100K_PAT_STR, LLAMA_SPECIAL_TOKENS

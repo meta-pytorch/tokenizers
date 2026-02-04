@@ -82,7 +82,7 @@ class Tiktoken : public detail::BPETokenizerBase {
       : _pattern(_get_default_patern()),
         _special_tokens(_get_default_special_tokens()),
         _bos_token_index(kBOSTokenIndex),
-        _eos_token_index(kEOSTokenIndex){};
+        _eos_token_index(kEOSTokenIndex) {};
 
   Error load(const std::string& tokenizer_path) override;
 
