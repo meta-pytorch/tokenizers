@@ -134,7 +134,7 @@ Result<std::string> Llama2cTokenizer::decode(
     uint64_t prev_token,
     uint64_t token,
     bool skip_special_tokens) const {
-  (void)skip_special_tokens;
+  (void)skip_special_tokens; // Mark as unused
   TK_CHECK_OK_OR_RETURN_ERROR(_decode_verify(token));
   const char* piece = vocab_[token];
   // following BOS token, sentencepiece decoder strips any leading

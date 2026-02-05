@@ -9,11 +9,11 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
-#include <vector>
-#include <map>
 #include <variant>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -59,12 +59,12 @@ enum class SequenceId { A, B };
 struct Piece {
   bool is_special_token;
   std::string id; // For SpecialToken (e.g. "[CLS]"). For Sequence (e.g. "A").
-  uint32_t type_id;
+  uint64_t type_id;
 
-  static Piece Sequence(SequenceId id, uint32_t type_id) {
+  static Piece Sequence(SequenceId id, uint64_t type_id) {
     return {false, id == SequenceId::A ? "A" : "B", type_id};
   }
-  static Piece SpecialToken(std::string id, uint32_t type_id) {
+  static Piece SpecialToken(std::string id, uint64_t type_id) {
     return {true, std::move(id), type_id};
   }
 };
@@ -73,7 +73,7 @@ using Template = std::vector<Piece>;
 
 struct SpecialToken {
   std::string id;
-  std::vector<uint32_t> ids;
+  std::vector<uint64_t> ids;
   std::vector<std::string> tokens;
 };
 
@@ -105,49 +105,11 @@ class TemplateProcessing : public PostProcessor {
   size_t added_pair_;
 
   std::vector<uint64_t> apply_template(
-    const Template& tmpl,
-    const std::vector<uint64_t>& tokens_a,
-    const std::vector<uint64_t>* tokens_b,
-    bool add_special_tokens) const;
-};
-
-// -- BertProcessing -----------------------------------------------------------
-
-class BertProcessing : public PostProcessor {
- public:
-  BertProcessing();
-
-  size_t added_tokens(bool is_pair) const override;
-
-  std::vector<uint64_t> process(
-      const std::vector<uint64_t>& tokens,
-      bool add_special_tokens = true) const override;
-
-  std::vector<uint64_t> process(
+      const Template& tmpl,
       const std::vector<uint64_t>& tokens_a,
-      const std::vector<uint64_t>& tokens_b,
-      bool add_special_tokens = true) const override;
+      const std::vector<uint64_t>* tokens_b,
+      bool add_special_tokens) const;
 };
-
-// -- RobertaProcessing --------------------------------------------------------
-
-class RobertaProcessing : public PostProcessor {
- public:
-  RobertaProcessing();
-
-  size_t added_tokens(bool is_pair) const override;
-
-  std::vector<uint64_t> process(
-      const std::vector<uint64_t>& tokens,
-      bool add_special_tokens = true) const override;
-
-  std::vector<uint64_t> process(
-      const std::vector<uint64_t>& tokens_a,
-      const std::vector<uint64_t>& tokens_b,
-      bool add_special_tokens = true) const override;
-};
-
-// -- Sequence -----------------------------------------------------------------
 
 class Sequence : public PostProcessor {
  public:
@@ -180,8 +142,8 @@ class PostProcessorConfig {
   std::map<std::string, SpecialToken> special_tokens;
 
   // Bert / Roberta (unused params in no-op, but kept for parsing logic)
-  std::pair<std::string, uint32_t> sep;
-  std::pair<std::string, uint32_t> cls;
+  std::pair<std::string, uint64_t> sep;
+  std::pair<std::string, uint64_t> cls;
   bool trim_offsets = true;
   bool add_prefix_space = true;
 
@@ -195,4 +157,93 @@ class PostProcessorConfig {
   PostProcessorConfig& parse_json(const nlohmann::json& json_config);
 };
 
+// -- BertProcessing -----------------------------------------------------------
+// TODO: Implement BertProcessor
+/*
+class BertProcessing : public PostProcessor {
+ public:
+  BertProcessing(
+      std::pair<std::string, uint64_t> sep,
+      std::pair<std::string, uint64_t> cls);
+
+  size_t added_tokens(bool is_pair) const override;
+
+  std::vector<uint64_t> process(
+      const std::vector<uint64_t>& tokens,
+      bool add_special_tokens = true) const override;
+
+  std::vector<uint64_t> process(
+      const std::vector<uint64_t>& tokens_a,
+      const std::vector<uint64_t>& tokens_b,
+      bool add_special_tokens = true) const override;
+
+ private:
+  std::pair<std::string, uint64_t> sep_;
+  std::pair<std::string, uint64_t> cls_;
+};
+*/
+
+// -- RobertaProcessing --------------------------------------------------------
+// TODO: Implement RobertaProcessor
+/*
+class RobertaProcessing : public PostProcessor {
+ public:
+  RobertaProcessing(
+      std::pair<std::string, uint64_t> sep,
+      std::pair<std::string, uint64_t> cls,
+      bool trim_offsets,
+      bool add_prefix_space);
+
+  size_t added_tokens(bool is_pair) const override;
+
+  std::vector<uint64_t> process(
+      const std::vector<uint64_t>& tokens,
+      bool add_special_tokens = true) const override;
+
+  std::vector<uint64_t> process(
+      const std::vector<uint64_t>& tokens_a,
+      const std::vector<uint64_t>& tokens_b,
+      bool add_special_tokens = true) const override;
+
+ private:
+  std::pair<std::string, uint64_t> sep_;
+  std::pair<std::string, uint64_t> cls_;
+  bool trim_offsets_;
+  bool add_prefix_space_;
+};
+*/
+
+// -- ByteLevel
+// ----------------------------------------------------------------
+// TODO: Implement ByteLevelProcessor
+// This is a broader issue, as most of the processing is done on offsets.
+// Our current implementation doesn't supoort it and would require us to
+// introduce a complex Encoding type. Something similiar to the originl hf
+// implementaiton:
+// https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/tokenizer/encoding.rs
+// so we could store the offsets from pretokenization step.
+/*
+class ByteLevel : public PostProcessor {
+ public:
+  ByteLevel(bool trim_offsets, bool add_prefix_space);
+
+  size_t added_tokens(bool is_pair) const override;
+
+  std::vector<uint64_t> process(
+      const std::vector<uint64_t>& tokens,
+      bool add_special_tokens = true) const override;
+
+  std::vector<uint64_t> process(
+      const std::vector<uint64_t>& tokens_a,
+      const std::vector<uint64_t>& tokens_b,
+      bool add_special_tokens = true) const override;
+
+ private:
+  bool trim_offsets_;
+  bool add_prefix_space_;
+};
+*/
+
+// -- Sequence
+// -----------------------------------------------------------------
 } // namespace tokenizers
