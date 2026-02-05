@@ -193,7 +193,7 @@ class HFTokenizer : public detail::BPETokenizerBase {
 
   Result<std::string> decode(
       const std::vector<uint64_t>& tokens,
-      bool skip_special_tokens = true) const;
+      bool skip_special_tokens = false) const;
 
  private:
   Error _encode(

@@ -124,6 +124,24 @@ TEST_F(Llama2cTokenizerTest, IdToPieceOutOfRangeFails) {
   EXPECT_EQ(result.error(), Error::OutOfRange);
 }
 
+TEST_F(Llama2cTokenizerTest, TestDecodeSpecialTokens) {
+  Error res = tokenizer_->load(modelPath_);
+  EXPECT_EQ(res, Error::Ok);
+
+  uint64_t bos = tokenizer_->bos_tok();
+
+  // skip_special_tokens = false
+  auto res_false = tokenizer_->decode(0, bos, false);
+  EXPECT_TRUE(res_false.ok());
+  EXPECT_EQ(res_false.get(), "<s>");
+
+  // skip_special_tokens = true
+  // Llama2cTokenizer ignores the skip_special_tokens flag and returns the token.
+  auto res_true = tokenizer_->decode(0, bos, true);
+  EXPECT_TRUE(res_true.ok());
+  EXPECT_EQ(res_true.get(), "<s>");
+}
+
 TEST_F(Llama2cTokenizerTest, TokenizerMetadataIsExpected) {
   Error res = tokenizer_->load(modelPath_.c_str());
   EXPECT_EQ(res, Error::Ok);

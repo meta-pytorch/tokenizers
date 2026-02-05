@@ -39,6 +39,38 @@ TEST(NormalizerTest, ReplaceNormalizerMultipleMatches) {
   EXPECT_EQ(result, expected);
 }
 
+TEST(NormalizerTest, PrependNormalizerBasic) {
+  // Test basic prepending
+  PrependNormalizer normalizer("_");
+  std::string input = "Hello";
+  std::string expected = "_Hello";
+  std::string result = normalizer.normalize(input);
+  EXPECT_EQ(result, expected);
+}
+
+TEST(NormalizerTest, PrependNormalizerEmptyInput) {
+  // Test prepend with empty input (should return empty)
+  PrependNormalizer normalizer("_");
+  std::string input = "";
+  std::string expected = "";
+  std::string result = normalizer.normalize(input);
+  EXPECT_EQ(result, expected);
+}
+
+TEST(NormalizerTest, NormalizerConfigPrepend) {
+  // Test JSON parsing for Prepend normalizer
+  nlohmann::json config = {{"type", "Prepend"}, {"prepend", "_"}};
+
+  NormalizerConfig norm_config;
+  norm_config.parse_json(config);
+  auto normalizer = norm_config.create();
+
+  std::string input = "Hello";
+  std::string expected = "_Hello";
+  std::string result = normalizer->normalize(input);
+  EXPECT_EQ(result, expected);
+}
+
 TEST(NormalizerTest, NormalizerConfigFromJson) {
   // Test JSON parsing for Replace normalizer
   nlohmann::json config = {

@@ -80,6 +80,12 @@ TEST_F(TiktokenTest, TestIdToPieceWithoutLoad) {
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
+TEST_F(TiktokenTest, TestPieceToIdWithoutLoad) {
+  Tiktoken tokenizer;
+  auto result = tokenizer.piece_to_id("<|begin_of_text|>");
+  EXPECT_EQ(result.error(), Error::Uninitialized);
+}
+
 TEST_F(TiktokenTest, TokenizerVocabSizeIsExpected) {
   Error res = tokenizer_->load(modelPath_.c_str());
   EXPECT_EQ(res, Error::Ok);
@@ -134,6 +140,28 @@ TEST_F(TiktokenTest, IdToPieceOutOfRangeFails) {
   EXPECT_EQ(out.error(), Error::OutOfRange);
 }
 
+TEST_F(TiktokenTest, TestPieceToId) {
+  Error res = tokenizer_->load(modelPath_.c_str());
+  EXPECT_EQ(res, Error::Ok);
+  std::vector<std::pair<std::string, uint64_t>> expected = {
+      {"<|begin_of_text|>", 128000},
+      {"hello", 15339},
+      {" world", 1917},
+  };
+  for (const auto& [piece, token] : expected) {
+    Result<uint64_t> out = tokenizer_->piece_to_id(piece);
+    EXPECT_EQ(out.error(), Error::Ok);
+    EXPECT_EQ(out.get(), token);
+  }
+}
+
+TEST_F(TiktokenTest, PieceToIdNotFoundFails) {
+  Error res = tokenizer_->load(modelPath_.c_str());
+  EXPECT_EQ(res, Error::Ok);
+  auto result = tokenizer_->piece_to_id("not_a_real_piece");
+  EXPECT_EQ(result.error(), Error::OutOfRange);
+}
+
 TEST_F(TiktokenTest, TokenizerDecodeOutOfRangeFails) {
   Error res = tokenizer_->load(modelPath_.c_str());
   EXPECT_EQ(res, Error::Ok);
@@ -141,6 +169,23 @@ TEST_F(TiktokenTest, TokenizerDecodeOutOfRangeFails) {
   // range.
   Result<std::string> out = tokenizer_->decode(0, 128256 + 256);
   EXPECT_EQ(out.error(), Error::DecodeFailure);
+}
+
+TEST_F(TiktokenTest, TestDecodeSpecialTokens) {
+  Error res = tokenizer_->load(modelPath_.c_str());
+  EXPECT_EQ(res, Error::Ok);
+
+  uint64_t bos = tokenizer_->bos_tok();
+
+  // skip_special_tokens = false
+  auto res_false = tokenizer_->decode(0, bos, false);
+  EXPECT_TRUE(res_false.ok());
+  EXPECT_EQ(res_false.get(), "<|begin_of_text|>");
+
+  // skip_special_tokens = true
+  auto res_true = tokenizer_->decode(0, bos, true);
+  EXPECT_TRUE(res_true.ok());
+  EXPECT_EQ(res_true.get(), "");
 }
 
 TEST_F(TiktokenTest, ConstructionWithInvalidBOSIndex) {

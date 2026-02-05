@@ -114,6 +114,27 @@ TEST(SPTokenizerTest, TestDecode) {
   }
 }
 
+TEST(SPTokenizerTest, TestDecodeSpecialTokens) {
+  SPTokenizer tokenizer;
+  auto path = _get_resource_path("test_sentencepiece.model");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  uint64_t bos = tokenizer.bos_tok();
+
+  // skip_special_tokens = false
+  auto res_false = tokenizer.decode(0, bos, false);
+  EXPECT_TRUE(res_false.ok());
+  // SPTokenizer returns " " for control tokens like BOS/EOS
+  EXPECT_EQ(res_false.get(), " ");
+
+  // skip_special_tokens = true
+  // SPTokenizer ignores the skip_special_tokens flag
+  auto res_true = tokenizer.decode(0, bos, true);
+  EXPECT_TRUE(res_true.ok());
+  EXPECT_EQ(res_true.get(), " ");
+}
+
 TEST(SPTokenizerTest, TestIdToPiece) {
   SPTokenizer tokenizer;
   auto path = _get_resource_path("test_sentencepiece.model");
@@ -143,5 +164,4 @@ TEST(SPTokenizerTest, IdToPieceOutOfRangeFails) {
       tokenizer.id_to_piece(static_cast<uint64_t>(tokenizer.vocab_size()));
   EXPECT_EQ(result.error(), Error::OutOfRange);
 }
-
 } // namespace tokenizers

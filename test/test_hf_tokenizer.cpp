@@ -59,6 +59,12 @@ TEST(HFTokenizerTest, TestIdToPieceWithoutLoad) {
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
+TEST(HFTokenizerTest, TestPieceToIdWithoutLoad) {
+  HFTokenizer tokenizer;
+  auto result = tokenizer.piece_to_id("<s>");
+  EXPECT_EQ(result.error(), Error::Uninitialized);
+}
+
 TEST(HFTokenizerTest, TestLoad) {
   HFTokenizer tokenizer;
   auto path = _get_resource_path("test_hf_tokenizer.json");
@@ -136,6 +142,39 @@ TEST(HFTokenizerTest, IdToPieceOutOfRangeFails) {
   EXPECT_EQ(result.error(), Error::OutOfRange);
 }
 
+TEST(HFTokenizerTest, TestPieceToId) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("test_hf_tokenizer.json");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  auto unk = tokenizer.piece_to_id("<unk>");
+  EXPECT_EQ(unk.error(), Error::Ok);
+  EXPECT_EQ(unk.get(), 0);
+
+  auto bos = tokenizer.piece_to_id("<s>");
+  EXPECT_EQ(bos.error(), Error::Ok);
+  EXPECT_EQ(bos.get(), 1);
+
+  auto hello = tokenizer.piece_to_id("▁Hello");
+  EXPECT_EQ(hello.error(), Error::Ok);
+  EXPECT_EQ(hello.get(), 8);
+
+  auto world = tokenizer.piece_to_id("▁world!");
+  EXPECT_EQ(world.error(), Error::Ok);
+  EXPECT_EQ(world.get(), 9);
+}
+
+TEST(HFTokenizerTest, PieceToIdNotFoundFails) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("test_hf_tokenizer.json");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  auto result = tokenizer.piece_to_id("not_a_real_piece");
+  EXPECT_EQ(result.error(), Error::OutOfRange);
+}
+
 TEST(HFTokenizerTest, TestEncode) {
   HFTokenizer tokenizer;
   auto path = _get_resource_path("test_hf_tokenizer.json");
@@ -156,12 +195,39 @@ TEST(HFTokenizerTest, TestDecodeBatch) {
   auto path = _get_resource_path("hf_tokenizer_dir/");
   auto error = tokenizer.load(path);
   EXPECT_EQ(error, Error::Ok);
-  // Test with tokens from our vocab: <s>, ▁Hello, ▁world!
-  std::vector<uint64_t> tokens = {1, 8, 9}; // <s>, ▁Hello, ▁world!
-  auto result = tokenizer.decode(tokens, false);
-  EXPECT_TRUE(result.ok());
+  // Test with tokens from our vocab: <s> (1), ▁Hello (8), ▁world! (9)
+  // Note: in hf_tokenizer_dir, bos is 128000
+  uint64_t bos = tokenizer.bos_tok();
+  std::vector<uint64_t> tokens = {bos, 8, 9};
+  
+  // skip_special_tokens = false
+  auto result_false = tokenizer.decode(tokens, false);
+  EXPECT_TRUE(result_false.ok());
+  EXPECT_EQ(result_false.get(), "<|begin_of_text|>▁Hello▁world!");
 
-  EXPECT_EQ(result.get(), "<s>▁Hello▁world!");
+  // skip_special_tokens = true
+  auto result_true = tokenizer.decode(tokens, true);
+  EXPECT_TRUE(result_true.ok());
+  EXPECT_EQ(result_true.get(), "▁Hello▁world!");
+}
+
+TEST(HFTokenizerTest, TestDecodeSpecialTokens) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("hf_tokenizer_dir/");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  uint64_t bos = tokenizer.bos_tok();
+
+  // Single token decode: skip_special_tokens = false
+  auto res_false = tokenizer.decode(0, bos, false);
+  EXPECT_TRUE(res_false.ok());
+  EXPECT_EQ(res_false.get(), "<|begin_of_text|>");
+
+  // Single token decode: skip_special_tokens = true
+  auto res_true = tokenizer.decode(0, bos, true);
+  EXPECT_TRUE(res_true.ok());
+  EXPECT_EQ(res_true.get(), "");
 }
 
 TEST(HFTokenizerTest, TestDecode) {
