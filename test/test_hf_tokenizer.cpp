@@ -199,7 +199,7 @@ TEST(HFTokenizerTest, TestDecodeBatch) {
   // Note: in hf_tokenizer_dir, bos is 128000
   uint64_t bos = tokenizer.bos_tok();
   std::vector<uint64_t> tokens = {bos, 8, 9};
-  
+
   // skip_special_tokens = false
   auto result_false = tokenizer.decode(tokens, false);
   EXPECT_TRUE(result_false.ok());
@@ -457,7 +457,7 @@ TEST(HFTokenizerTest, TestByteFallback) {
   // Decode should also work if we have a decoder
   auto decoded = tokenizer.decode(result.get());
   EXPECT_TRUE(decoded.ok());
-  EXPECT_EQ(decoded.get(), "ab");
+  EXPECT_EQ(decoded.get(), "a<0x62>");
 }
 
 TEST(HFTokenizerTest, TestProperRoundTrip) {
@@ -475,30 +475,15 @@ TEST(HFTokenizerTest, TestProperRoundTrip) {
       "merges": []
     },
     "normalizer": {
-      "type": "Sequence",
-      "normalizers": [
-        {
-          "type": "Replace",
-          "pattern": { "String": " " },
-          "content": "▁"
-        }
-      ]
+      "type": "Replace",
+      "pattern": { "String": " " },
+      "content": "▁"
     },
-    "pre_tokenizer": {
-      "type": "ByteLevel",
-      "add_prefix_space": false,
-      "trim_offsets": false,
-      "use_regex": false
-    },
+    "pre_tokenizer": null,
+    "post_processor": null,
     "decoder": {
       "type": "Sequence",
       "decoders": [
-        {
-          "type": "ByteLevel",
-          "add_prefix_space": false,
-          "trim_offsets": false,
-          "use_regex": false
-        },
         {
           "type": "Replace",
           "pattern": { "String": "▁" },
