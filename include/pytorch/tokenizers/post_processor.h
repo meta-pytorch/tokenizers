@@ -111,6 +111,7 @@ class TemplateProcessing : public PostProcessor {
       bool add_special_tokens) const;
 };
 
+// -- SequenceProcessing -------------------------------------------------------
 class Sequence : public PostProcessor {
  public:
   explicit Sequence(std::vector<PostProcessor::Ptr> processors);
@@ -159,59 +160,9 @@ class PostProcessorConfig {
 
 // -- BertProcessing -----------------------------------------------------------
 // TODO: Implement BertProcessor
-/*
-class BertProcessing : public PostProcessor {
- public:
-  BertProcessing(
-      std::pair<std::string, uint64_t> sep,
-      std::pair<std::string, uint64_t> cls);
-
-  size_t added_tokens(bool is_pair) const override;
-
-  std::vector<uint64_t> process(
-      const std::vector<uint64_t>& tokens,
-      bool add_special_tokens = true) const override;
-
-  std::vector<uint64_t> process(
-      const std::vector<uint64_t>& tokens_a,
-      const std::vector<uint64_t>& tokens_b,
-      bool add_special_tokens = true) const override;
-
- private:
-  std::pair<std::string, uint64_t> sep_;
-  std::pair<std::string, uint64_t> cls_;
-};
-*/
 
 // -- RobertaProcessing --------------------------------------------------------
 // TODO: Implement RobertaProcessor
-/*
-class RobertaProcessing : public PostProcessor {
- public:
-  RobertaProcessing(
-      std::pair<std::string, uint64_t> sep,
-      std::pair<std::string, uint64_t> cls,
-      bool trim_offsets,
-      bool add_prefix_space);
-
-  size_t added_tokens(bool is_pair) const override;
-
-  std::vector<uint64_t> process(
-      const std::vector<uint64_t>& tokens,
-      bool add_special_tokens = true) const override;
-
-  std::vector<uint64_t> process(
-      const std::vector<uint64_t>& tokens_a,
-      const std::vector<uint64_t>& tokens_b,
-      bool add_special_tokens = true) const override;
-
- private:
-  std::pair<std::string, uint64_t> sep_;
-  std::pair<std::string, uint64_t> cls_;
-  bool trim_offsets_;
-  bool add_prefix_space_;
-};
-*/
 
 // -- ByteLevel
 // ----------------------------------------------------------------
@@ -222,28 +173,5 @@ class RobertaProcessing : public PostProcessor {
 // implementaiton:
 // https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/tokenizer/encoding.rs
 // so we could store the offsets from pretokenization step.
-/*
-class ByteLevel : public PostProcessor {
- public:
-  ByteLevel(bool trim_offsets, bool add_prefix_space);
 
-  size_t added_tokens(bool is_pair) const override;
-
-  std::vector<uint64_t> process(
-      const std::vector<uint64_t>& tokens,
-      bool add_special_tokens = true) const override;
-
-  std::vector<uint64_t> process(
-      const std::vector<uint64_t>& tokens_a,
-      const std::vector<uint64_t>& tokens_b,
-      bool add_special_tokens = true) const override;
-
- private:
-  bool trim_offsets_;
-  bool add_prefix_space_;
-};
-*/
-
-// -- Sequence
-// -----------------------------------------------------------------
 } // namespace tokenizers
