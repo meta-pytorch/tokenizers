@@ -63,6 +63,82 @@ TEST(PostProcessorTest, TemplateProcessingPairSequence) {
   EXPECT_EQ(output, expected);
 }
 
+TEST(PostProcessorTest, SkipSpecialTokens) {
+  // Setup: [CLS] $A [SEP]
+  Template single_template = {
+      Piece::SpecialToken("[CLS]", 0),
+      Piece::Sequence(SequenceId::A, 0),
+      Piece::SpecialToken("[SEP]", 0)};
+
+  std::map<std::string, SpecialToken> special_tokens;
+  special_tokens["[CLS]"] = {"[CLS]", {101}, {"[CLS]"}};
+  special_tokens["[SEP]"] = {"[SEP]", {102}, {"[SEP]"}};
+
+  auto processor = std::make_shared<TemplateProcessing>(
+      single_template, Template{}, special_tokens);
+
+  std::vector<uint64_t> input = {1, 2, 3};
+
+  // When add_special_tokens is false, result should just be the sequence itself
+  std::vector<uint64_t> expected = {1, 2, 3};
+  auto output =
+      processor->process(input, false); // false = don't add special tokens
+
+  EXPECT_EQ(output, expected);
+}
+
+TEST(PostProcessorTest, SequenceProcessorSkipSpecialTokens) {
+  // P1: [CLS] $A
+  // P2: $A [SEP]
+  // Nested in a Sequence, both should respect the flag.
+
+  Template t1 = {
+      Piece::SpecialToken("[CLS]", 0), Piece::Sequence(SequenceId::A, 0)};
+  Template t2 = {
+      Piece::Sequence(SequenceId::A, 0), Piece::SpecialToken("[SEP]", 0)};
+
+  std::map<std::string, SpecialToken> st;
+  st["[CLS]"] = {"[CLS]", {101}, {"[CLS]"}};
+  st["[SEP]"] = {"[SEP]", {102}, {"[SEP]"}};
+
+  auto p1 = std::make_shared<TemplateProcessing>(t1, Template{}, st);
+  auto p2 = std::make_shared<TemplateProcessing>(t2, Template{}, st);
+  auto seq_processor =
+      std::make_shared<Sequence>(std::vector<PostProcessor::Ptr>{p1, p2});
+
+  std::vector<uint64_t> input = {5, 6};
+  std::vector<uint64_t> expected = {5, 6};
+
+  auto output = seq_processor->process(input, false);
+  EXPECT_EQ(output, expected);
+}
+
+TEST(PostProcessorTest, PairSkipSpecialTokens) {
+  // Setup: [CLS] $A [SEP] $B [SEP]
+  Template pair_template = {
+      Piece::SpecialToken("[CLS]", 0),
+      Piece::Sequence(SequenceId::A, 0),
+      Piece::SpecialToken("[SEP]", 0),
+      Piece::Sequence(SequenceId::B, 1),
+      Piece::SpecialToken("[SEP]", 0)};
+
+  std::map<std::string, SpecialToken> special_tokens;
+  special_tokens["[CLS]"] = {"[CLS]", {101}, {"[CLS]"}};
+  special_tokens["[SEP]"] = {"[SEP]", {102}, {"[SEP]"}};
+
+  auto processor = std::make_shared<TemplateProcessing>(
+      Template{}, pair_template, special_tokens);
+
+  std::vector<uint64_t> input_a = {1};
+  std::vector<uint64_t> input_b = {2};
+
+  // Result should be concatenation of A and B without tokens 101 or 102
+  std::vector<uint64_t> expected = {1, 2};
+  auto output = processor->process(input_a, input_b, false);
+
+  EXPECT_EQ(output, expected);
+}
+
 TEST(PostProcessorTest, SequenceProcessing) {
   // Processor 1: Prepend 101
   Template t1 = {

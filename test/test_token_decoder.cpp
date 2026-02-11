@@ -92,6 +92,16 @@ TEST(FuseTokenDecoderTest, TestPassthrough) {
   EXPECT_EQ(decoder.decode(std::vector<std::string>{""})[0], "");
 }
 
+TEST(FuseTokenDecoderTest, TestBatchFuse) {
+  FuseTokenDecoder decoder;
+
+  std::vector<std::string> tokens = {"Hello", " ", "world", "!"};
+  auto result = decoder.decode(tokens);
+
+  ASSERT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0], "Hello world!");
+}
+
 // Test SequenceTokenDecoder
 TEST(SequenceTokenDecoderTest, TestEmptySequence) {
   std::vector<TokenDecoder::Ptr> decoders;

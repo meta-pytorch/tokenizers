@@ -460,22 +460,71 @@ TEST(HFTokenizerTest, TestByteFallback) {
   EXPECT_EQ(decoded.get(), "ab");
 }
 
-TEST(HFTokenizerTest, TestRoundTrip) {
-  auto path = _get_resource_path("test_hf_tokenizer.json");
+TEST(HFTokenizerTest, TestProperRoundTrip) {
+  // We use a custom config here because the standard 'test_hf_tokenizer.json'
+  // uses a Replace normalizer (" " -> "▁"). To achieve decode(encode(x)) === x,
+  // we must provide a Decoder Sequence that reverses this mapping.
+
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "H": 0, "e": 1, "l": 2, "o": 3, "w": 4, "r": 5, "d": 6, "!": 7, "▁": 8
+      },
+      "merges": []
+    },
+    "normalizer": {
+      "type": "Sequence",
+      "normalizers": [
+        {
+          "type": "Replace",
+          "pattern": { "String": " " },
+          "content": "▁"
+        }
+      ]
+    },
+    "pre_tokenizer": {
+      "type": "ByteLevel",
+      "add_prefix_space": false,
+      "trim_offsets": false,
+      "use_regex": false
+    },
+    "decoder": {
+      "type": "Sequence",
+      "decoders": [
+        {
+          "type": "ByteLevel",
+          "add_prefix_space": false,
+          "trim_offsets": false,
+          "use_regex": false
+        },
+        {
+          "type": "Replace",
+          "pattern": { "String": "▁" },
+          "content": " "
+        }
+      ]
+    },
+    "added_tokens": []
+  })";
+
+  TempFile tmpfile(json);
   HFTokenizer tokenizer;
-  auto error = tokenizer.load(path);
+  auto error = tokenizer.load(tmpfile.path());
   EXPECT_EQ(error, Error::Ok);
 
   std::string input = "Hello world!";
+
   auto encoded = tokenizer.encode(input, 0, 0);
-  EXPECT_TRUE(encoded.ok());
+  ASSERT_TRUE(encoded.ok());
 
   auto decoded = tokenizer.decode(encoded.get());
-  EXPECT_TRUE(decoded.ok());
-  // The test_hf_tokenizer.json uses SentencePiece-style prefix '▁' for spaces
-  // The decoder is ByteLevel, but it doesn't undo the Replace normalizer
-  // So "Hello world!" -> "Hello▁world!"
-  EXPECT_EQ(decoded.get(), "Hello▁world!");
+  ASSERT_TRUE(decoded.ok());
+
+  // Identity is now preserved because the Decoder Sequence is the
+  // mathematical inverse of the Normalizer + PreTokenizer.
+  EXPECT_EQ(decoded.get(), input);
 }
 
 TEST(HFTokenizerTest, TestNullPreTokenizer) {
