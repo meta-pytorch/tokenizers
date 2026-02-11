@@ -79,3 +79,18 @@ class TestHfTokenizer(unittest.TestCase):
         tokens = tokenizer.encode(PROMPT)
         cpp_tokens = cpp_tokenizer.encode(PROMPT)
         self.assertEqual(tokens, cpp_tokens)
+
+    def test_decode_batch(self) -> None:
+        tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM3-3B")
+        tokenizer_path = tokenizer.save_pretrained(self.temp_dir.name)[-1]
+
+        cpp_tokenizer = CppHFTokenizer()
+        cpp_tokenizer.load(tokenizer_path)
+
+        text = "Hello, world!"
+        tokens = tokenizer.encode(text)
+        decoded_text = cpp_tokenizer.decode_batch(tokens, skip_special_tokens=True)
+        # We use skip_special_tokens=True to match tokenizer.encode output if it includes special tokens
+        # but tokenizer.decode(tokens, skip_special_tokens=True) is better comparison
+        ref_decoded = tokenizer.decode(tokens, skip_special_tokens=True)
+        self.assertEqual(decoded_text, ref_decoded)
