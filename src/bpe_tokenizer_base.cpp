@@ -258,6 +258,7 @@ Result<std::string> BPETokenizerBase::id_to_piece(uint64_t token) const {
 
 Result<uint64_t> BPETokenizerBase::piece_to_id(const std::string& text) const {
   if (!initialized_) {
+    TK_LOG(Error, "Tokenizer not initialized");
     return Error::Uninitialized;
   }
   if (!token_map_.has_value() || !special_token_map_.has_value()) {
@@ -268,6 +269,7 @@ Result<uint64_t> BPETokenizerBase::piece_to_id(const std::string& text) const {
     result = special_token_map_->tryGetInteger(text);
   }
   if (!result) {
+    TK_LOG(Debug, "Piece '%s' not found in vocabulary", text.c_str());
     return Error::OutOfRange;
   }
   return *result;

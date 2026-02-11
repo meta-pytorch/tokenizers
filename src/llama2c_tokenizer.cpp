@@ -173,7 +173,7 @@ Result<uint64_t> Llama2cTokenizer::piece_to_id(const std::string& text) const {
   if (id != -1) {
     return static_cast<uint64_t>(id);
   } else {
-    TK_LOG(Error, "Piece '%s' not found in vocabulary", text.c_str());
+    TK_LOG(Debug, "Piece '%s' not found in vocabulary", text.c_str());
     return Error::OutOfRange;
   }
 }

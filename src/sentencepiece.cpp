@@ -70,7 +70,7 @@ Result<std::string> SPTokenizer::id_to_piece(uint64_t token) const {
 
 Result<uint64_t> SPTokenizer::piece_to_id(const std::string& text) const {
   if (!initialized_) {
-    fprintf(stderr, "Tokenizer not initialized\n");
+    TK_LOG(Error, "Tokenizer not initialized");
     return Error::Uninitialized;
   }
   int32_t id = _processor->PieceToId(text);
@@ -81,7 +81,7 @@ Result<uint64_t> SPTokenizer::piece_to_id(const std::string& text) const {
     if (text == _processor->IdToPiece(id)) {
       return static_cast<uint64_t>(id);
     }
-    fprintf(stderr, "Piece '%s' not found in vocabulary\n", text.c_str());
+    TK_LOG(Debug, "Piece '%s' not found in vocabulary", text.c_str());
     return Error::OutOfRange;
   }
   return static_cast<uint64_t>(id);
