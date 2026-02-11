@@ -153,6 +153,14 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
             return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
+          py::arg("skip_special_tokens") = false)
+      .def(
+          "decode_batch",
+          [](const HFTokenizer& self, const std::vector<uint64_t>& tokens,
+             bool skip_special_tokens = false) {
+            return unwrap_result(self.decode(tokens, skip_special_tokens));
+          },
+          py::arg("tokens"),
           py::arg("skip_special_tokens") = false);
 
   // Bind Tiktoken

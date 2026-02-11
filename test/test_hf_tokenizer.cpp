@@ -420,4 +420,172 @@ TEST(HFTokenizerTest, TestBPEMergeEncode) {
   // verify that merges are parsed and the tokenizer loads successfully.
 }
 
+TEST(HFTokenizerTest, TestByteFallback) {
+  // Create a minimal tokenizer with byte fallback enabled
+  // Vocab: "a": 0, "<0x62>": 1 (for 'b')
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "a": 0,
+        "<0x62>": 1
+      },
+      "merges": [],
+      "byte_fallback": true
+    },
+    "normalizer": null,
+    "pre_tokenizer": null,
+    "post_processor": null,
+    "decoder": {
+      "type": "ByteLevel"
+    },
+    "added_tokens": []
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  auto error = tokenizer.load(tmpfile.path());
+  EXPECT_EQ(error, Error::Ok);
+
+  // 'a' is in vocab, 'b' should fallback to <0x62>
+  auto result = tokenizer.encode("ab", 0, 0);
+  EXPECT_TRUE(result.ok());
+  std::vector<uint64_t> expected = {0, 1};
+  EXPECT_EQ(result.get(), expected);
+
+  // Decode should also work if we have a decoder
+  auto decoded = tokenizer.decode(result.get());
+  EXPECT_TRUE(decoded.ok());
+  EXPECT_EQ(decoded.get(), "ab");
+}
+
+TEST(HFTokenizerTest, TestRoundTrip) {
+  auto path = _get_resource_path("test_hf_tokenizer.json");
+  HFTokenizer tokenizer;
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  std::string input = "Hello world!";
+  auto encoded = tokenizer.encode(input, 0, 0);
+  EXPECT_TRUE(encoded.ok());
+
+  auto decoded = tokenizer.decode(encoded.get());
+  EXPECT_TRUE(decoded.ok());
+  // The test_hf_tokenizer.json uses SentencePiece-style prefix '▁' for spaces
+  // The decoder is ByteLevel, but it doesn't undo the Replace normalizer
+  // So "Hello world!" -> "Hello▁world!"
+  EXPECT_EQ(decoded.get(), "Hello▁world!");
+}
+
+TEST(HFTokenizerTest, TestNullPreTokenizer) {
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "hello": 0,
+        "world": 1
+      },
+      "merges": []
+    },
+    "normalizer": null,
+    "pre_tokenizer": null,
+    "post_processor": null,
+    "added_tokens": []
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  auto error = tokenizer.load(tmpfile.path());
+  EXPECT_EQ(error, Error::Ok);
+
+  auto result = tokenizer.encode("hello", 0, 0);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(result.get().size(), 1);
+  EXPECT_EQ(result.get()[0], 0);
+}
+
+TEST(HFTokenizerTest, TestEmptyAndUnknown) {
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "a": 0
+      },
+      "merges": [],
+      "unk_token": "[UNK]"
+    },
+    "normalizer": null,
+    "pre_tokenizer": null,
+    "post_processor": null,
+    "added_tokens": [
+      {
+        "id": 1,
+        "content": "[UNK]",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false
+      }
+    ]
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  auto error = tokenizer.load(tmpfile.path());
+  EXPECT_EQ(error, Error::Ok);
+
+  // Empty string
+  auto empty_result = tokenizer.encode("", 0, 0);
+  EXPECT_TRUE(empty_result.ok());
+  EXPECT_TRUE(empty_result.get().empty());
+
+  // Unknown character
+  auto unk_result = tokenizer.encode("b", 0, 0);
+  EXPECT_TRUE(unk_result.ok());
+  std::vector<uint64_t> expected_unk = {1}; // [UNK]
+  EXPECT_EQ(unk_result.get(), expected_unk);
+}
+
+TEST(HFTokenizerTest, TestUnkTokenConfiguration) {
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "a": 0
+      },
+      "merges": [],
+      "unk_token": "<unk>"
+    },
+    "normalizer": null,
+    "pre_tokenizer": null,
+    "post_processor": null,
+    "added_tokens": [
+      {
+        "id": 1,
+        "content": "<unk>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false
+      }
+    ]
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  auto error = tokenizer.load(tmpfile.path());
+  EXPECT_EQ(error, Error::Ok);
+
+  // Encode unknown
+  auto result = tokenizer.encode("xyz", 0, 0);
+  EXPECT_TRUE(result.ok());
+  // 'x', 'y', 'z' are all unknown
+  std::vector<uint64_t> expected = {1, 1, 1};
+  EXPECT_EQ(result.get(), expected);
+}
+
 } // namespace tokenizers
