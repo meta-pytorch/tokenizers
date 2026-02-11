@@ -79,6 +79,29 @@ TEST_F(TekkenTest, IdToPieceWithoutLoadFails) {
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
+TEST_F(TekkenTest, PieceToIdWithoutLoadFails) {
+  Tekken tokenizer;
+  auto result = tokenizer.piece_to_id("<s>");
+  EXPECT_EQ(result.error(), Error::Uninitialized);
+}
+
+TEST_F(TekkenTest, TestPieceToId) {
+  Error res = tokenizer_->load(modelPath_);
+  EXPECT_EQ(res, Error::Ok);
+
+  auto hello = tokenizer_->piece_to_id("Hello");
+  EXPECT_EQ(hello.error(), Error::Ok);
+  EXPECT_EQ(hello.get(), 22177);
+
+  auto world = tokenizer_->piece_to_id("world");
+  EXPECT_EQ(world.error(), Error::Ok);
+  EXPECT_EQ(world.get(), 34049);
+
+  auto dot = tokenizer_->piece_to_id(".");
+  EXPECT_EQ(dot.error(), Error::Ok);
+  EXPECT_EQ(dot.get(), 1046);
+}
+
 TEST_F(TekkenTest, IdToPieceReturnsExpectedSpecialTokens) {
   Error res = tokenizer_->load(modelPath_);
   EXPECT_EQ(res, Error::Ok);
@@ -102,6 +125,48 @@ TEST_F(TekkenTest, IdToPieceOutOfRangeFails) {
 
   auto result =
       tokenizer_->id_to_piece(static_cast<uint64_t>(tokenizer_->vocab_size()));
+  EXPECT_EQ(result.error(), Error::OutOfRange);
+}
+
+TEST_F(TekkenTest, TestDecodeSpecialTokens) {
+  Error res = tokenizer_->load(modelPath_);
+  EXPECT_EQ(res, Error::Ok);
+
+  uint64_t bos = tokenizer_->bos_tok();
+
+  // skip_special_tokens = false
+  auto res_false = tokenizer_->decode(0, bos, false);
+  EXPECT_TRUE(res_false.ok());
+  EXPECT_EQ(res_false.get(), "<s>");
+
+  // skip_special_tokens = true
+  auto res_true = tokenizer_->decode(0, bos, true);
+  EXPECT_TRUE(res_true.ok());
+  EXPECT_EQ(res_true.get(), "");
+}
+
+TEST_F(TekkenTest, PieceToIdReturnsExpectedSpecialTokens) {
+  Error res = tokenizer_->load(modelPath_);
+  EXPECT_EQ(res, Error::Ok);
+
+  auto bos = tokenizer_->piece_to_id("<s>");
+  EXPECT_EQ(bos.error(), Error::Ok);
+  EXPECT_EQ(bos.get(), tokenizer_->bos_tok());
+
+  auto eos = tokenizer_->piece_to_id("</s>");
+  EXPECT_EQ(eos.error(), Error::Ok);
+  EXPECT_EQ(eos.get(), tokenizer_->eos_tok());
+
+  auto inst = tokenizer_->piece_to_id("[INST]");
+  EXPECT_EQ(inst.error(), Error::Ok);
+  EXPECT_EQ(inst.get(), 3);
+}
+
+TEST_F(TekkenTest, PieceToIdNotFoundFails) {
+  Error res = tokenizer_->load(modelPath_);
+  EXPECT_EQ(res, Error::Ok);
+
+  auto result = tokenizer_->piece_to_id("not_a_real_piece");
   EXPECT_EQ(result.error(), Error::OutOfRange);
 }
 

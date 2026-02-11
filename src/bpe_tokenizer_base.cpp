@@ -11,6 +11,7 @@
 
 // Standard
 #include <inttypes.h>
+#include <cstdint>
 #include <functional>
 
 namespace tokenizers {
@@ -192,7 +193,7 @@ Result<std::vector<uint64_t>> BPETokenizerBase::byte_pair_encode_(
   if (piece.size() == 1) {
     const auto result = token_map.tryGetInteger(piece);
     if (result) {
-      return std::vector<uint64_t>(*result);
+      return std::vector<uint64_t>(1, *result);
     } else {
       TK_LOG(Error, "unknown token: '%s'", piece.c_str());
       return Error::EncodeFailure;
@@ -255,8 +256,29 @@ Result<std::string> BPETokenizerBase::id_to_piece(uint64_t token) const {
   return std::string(*result);
 }
 
-Result<std::string> BPETokenizerBase::decode(uint64_t prev, uint64_t cur)
-    const {
+Result<uint64_t> BPETokenizerBase::piece_to_id(const std::string& text) const {
+  if (!initialized_) {
+    TK_LOG(Error, "Tokenizer not initialized");
+    return Error::Uninitialized;
+  }
+  if (!token_map_.has_value() || !special_token_map_.has_value()) {
+    return Error::Internal;
+  }
+  auto result = token_map_->tryGetInteger(text);
+  if (!result) {
+    result = special_token_map_->tryGetInteger(text);
+  }
+  if (!result) {
+    TK_LOG(Debug, "Piece '%s' not found in vocabulary", text.c_str());
+    return Error::OutOfRange;
+  }
+  return *result;
+}
+
+Result<std::string> BPETokenizerBase::decode(
+    uint64_t prev,
+    uint64_t cur,
+    bool skip_special_tokens) const {
   (void)prev;
   if (!initialized_) {
     return Error::Uninitialized;
@@ -264,17 +286,20 @@ Result<std::string> BPETokenizerBase::decode(uint64_t prev, uint64_t cur)
   std::string ret;
 
   std::string_view token_bytes;
-  auto result = token_map_->tryGetString(cur);
-  if (!result) {
-    result = special_token_map_->tryGetString(cur);
-    if (!result) {
+  auto regular_token_result = token_map_->tryGetString(cur);
+  if (regular_token_result) { // Found in regular tokens
+    token_bytes = *regular_token_result;
+  } else { // Not a regular token, check if it's a special token
+    auto special_token_result = special_token_map_->tryGetString(cur);
+    if (special_token_result) { // It's a special token
+      if (skip_special_tokens) {
+        return std::string(""); // Skip it
+      }
+      token_bytes = *special_token_result; // Don't skip, use its string
+    } else { // Unknown token
       TK_LOG(Error, "unknown token: %" PRIu64 "\n", cur);
       return Error::DecodeFailure;
-    } else {
-      token_bytes = *result;
     }
-  } else {
-    token_bytes = *result;
   }
   _decode(std::string(token_bytes), ret);
 

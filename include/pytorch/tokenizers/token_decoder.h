@@ -45,7 +45,8 @@ class TokenDecoder {
    *
    * @returns decoded: The decoded token string
    */
-  virtual std::string decode(const std::string& token) const = 0;
+  virtual std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const = 0;
 
   // virtual destructor
   virtual ~TokenDecoder() = default;
@@ -71,6 +72,11 @@ class TokenDecoderConfig {
 
   // Parameters for Sequence decoder
   std::vector<nlohmann::json> sequence_decoders;
+
+  // Parameters for Strip decoder
+  std::string strip_content;
+  size_t strip_start;
+  size_t strip_stop;
 
   /*----------------*/
   /* Public methods */
@@ -99,7 +105,8 @@ class TokenDecoderConfig {
 
 class ByteLevelTokenDecoder : public TokenDecoder {
  public:
-  std::string decode(const std::string& token) const override;
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
 
 }; // end class ByteLevelTokenDecoder
 
@@ -111,7 +118,8 @@ class ReplaceTokenDecoder : public TokenDecoder {
   explicit ReplaceTokenDecoder(
       const std::string& pattern,
       const std::string& content);
-  std::string decode(const std::string& token) const override;
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
 
  private:
   std::string pattern_;
@@ -123,7 +131,8 @@ class ReplaceTokenDecoder : public TokenDecoder {
 
 class ByteFallbackTokenDecoder : public TokenDecoder {
  public:
-  std::string decode(const std::string& token) const override;
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
 
 }; // end class ByteFallbackTokenDecoder
 
@@ -132,9 +141,28 @@ class ByteFallbackTokenDecoder : public TokenDecoder {
 
 class FuseTokenDecoder : public TokenDecoder {
  public:
-  std::string decode(const std::string& token) const override;
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
 
 }; // end class FuseTokenDecoder
+
+// -- Strip ------------------------------------------------------------------
+// Strips characters from tokens
+
+class StripTokenDecoder : public TokenDecoder {
+ public:
+  explicit StripTokenDecoder(
+      const std::string& content_str,
+      size_t start,
+      size_t stop);
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
+
+ private:
+  uint32_t content_;
+  size_t start_;
+  size_t stop_;
+}; // end class StripTokenDecoder
 
 // -- Sequence -----------------------------------------------------------------
 // Applies a sequence of decoders in order
@@ -142,7 +170,8 @@ class FuseTokenDecoder : public TokenDecoder {
 class SequenceTokenDecoder : public TokenDecoder {
  public:
   explicit SequenceTokenDecoder(std::vector<TokenDecoder::Ptr> decoders);
-  std::string decode(const std::string& token) const override;
+  std::vector<std::string> decode(
+      const std::vector<std::string>& tokens) const override;
 
  private:
   std::vector<TokenDecoder::Ptr> decoders_;

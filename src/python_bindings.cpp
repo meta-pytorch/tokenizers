@@ -114,10 +114,11 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const Tokenizer& self, uint64_t token) {
-            return unwrap_result(self.decode(token, token));
+          [](const Tokenizer& self, uint64_t token, bool skip_special_tokens = false) {
+            return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
-          py::arg("token"))
+          py::arg("token"),
+          py::arg("skip_special_tokens") = false)
       .def("vocab_size", &Tokenizer::vocab_size)
       .def("bos_tok", &Tokenizer::bos_tok)
       .def("eos_tok", &Tokenizer::eos_tok)
@@ -148,10 +149,19 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const HFTokenizer& self, uint64_t token) {
-            return unwrap_result(self.decode(token, token));
+          [](const HFTokenizer& self, uint64_t token, bool skip_special_tokens = false) {
+            return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
-          py::arg("token"));
+          py::arg("token"),
+          py::arg("skip_special_tokens") = false)
+      .def(
+          "decode_batch",
+          [](const HFTokenizer& self, const std::vector<uint64_t>& tokens,
+             bool skip_special_tokens = false) {
+            return unwrap_result(self.decode(tokens, skip_special_tokens));
+          },
+          py::arg("tokens"),
+          py::arg("skip_special_tokens") = false);
 
   // Bind Tiktoken
   py::class_<Tiktoken, Tokenizer>(m, "Tiktoken")
@@ -189,10 +199,11 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const Tiktoken& self, uint64_t token) {
-            return unwrap_result(self.decode(token, token));
+          [](const Tiktoken& self, uint64_t token, bool skip_special_tokens = false) {
+            return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
-          py::arg("token"));
+          py::arg("token"),
+          py::arg("skip_special_tokens") = false);
 
   // Bind Llama2cTokenizer
   py::class_<Llama2cTokenizer, Tokenizer>(m, "Llama2cTokenizer")
@@ -219,10 +230,11 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const Llama2cTokenizer& self, uint64_t token) {
-            return unwrap_result(self.decode(token, token));
+          [](const Llama2cTokenizer& self, uint64_t token, bool skip_special_tokens = false) {
+            return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
-          py::arg("token"));
+          py::arg("token"),
+          py::arg("skip_special_tokens") = false);
 
   // Bind SPTokenizer (SentencePiece)
   py::class_<SPTokenizer, Tokenizer>(m, "SPTokenizer")
@@ -250,10 +262,11 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const SPTokenizer& self, uint64_t token) {
-            return unwrap_result(self.decode(token, token));
+          [](const SPTokenizer& self, uint64_t token, bool skip_special_tokens = false) {
+            return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
-          py::arg("token"));
+          py::arg("token"),
+          py::arg("skip_special_tokens") = false);
 
   // Bind Tekken tokenizer
   py::class_<Tekken, Tokenizer>(m, "Tekken")
@@ -280,17 +293,18 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const Tekken& self, uint64_t token) {
-            return unwrap_result(self.decode(token, token));
+          [](const Tekken& self, uint64_t token, bool skip_special_tokens = false) {
+            return unwrap_result(self.decode(token, token, skip_special_tokens));
           },
-          py::arg("token"))
+          py::arg("token"),
+          py::arg("skip_special_tokens") = false)
       .def(
           "decode_batch",
-          [](const Tekken& self, const std::vector<uint64_t>& tokens) {
+          [](const Tekken& self, const std::vector<uint64_t>& tokens, bool skip_special_tokens = false) {
             std::string result;
             for (size_t i = 0; i < tokens.size(); ++i) {
               uint64_t prev_token = (i == 0) ? 0 : tokens[i - 1];
-              auto decoded = self.decode(prev_token, tokens[i]);
+              auto decoded = self.decode(prev_token, tokens[i], skip_special_tokens);
               if (decoded.error() != Error::Ok) {
                 throw std::runtime_error("Failed to decode token");
               }
@@ -298,7 +312,8 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
             }
             return result;
           },
-          py::arg("tokens"))
+          py::arg("tokens"),
+          py::arg("skip_special_tokens") = false)
       .def("vocab_size", &Tekken::vocab_size)
       .def("bos_tok", &Tekken::bos_tok)
       .def("eos_tok", &Tekken::eos_tok)

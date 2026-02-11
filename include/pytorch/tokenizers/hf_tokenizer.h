@@ -16,9 +16,11 @@
 #include <string>
 
 // Local
+#include <nlohmann/json.hpp>
 #include <pytorch/tokenizers/bpe_tokenizer_base.h>
 #include <pytorch/tokenizers/error.h>
 #include <pytorch/tokenizers/normalizer.h>
+#include <pytorch/tokenizers/post_processor.h>
 #include <pytorch/tokenizers/pre_tokenizer.h>
 #include <pytorch/tokenizers/result.h>
 #include <pytorch/tokenizers/token_decoder.h>
@@ -182,6 +184,17 @@ class HFTokenizer : public detail::BPETokenizerBase {
    */
   Error load(const std::string& tokenizer_path) override;
 
+  Result<std::vector<uint64_t>> encode(
+      const std::string& input,
+      int8_t bos = 0,
+      int8_t eos = 0) const override;
+
+  using BPETokenizerBase::decode;
+
+  Result<std::string> decode(
+      const std::vector<uint64_t>& tokens,
+      bool skip_special_tokens = false) const;
+
  private:
   Error _encode(
       const std::string& input,
@@ -189,6 +202,9 @@ class HFTokenizer : public detail::BPETokenizerBase {
       uint64_t& last_piece_token_len) const override;
 
   void _decode(const std::string& input, std::string& ret) const override;
+
+  std::vector<std::string> _decode(
+      const std::vector<std::string>& pieces) const;
 
   Result<std::vector<uint64_t>> byte_pair_encode_(
       const std::string& piece,
@@ -202,13 +218,29 @@ class HFTokenizer : public detail::BPETokenizerBase {
       const detail::TokenMap& ranks,
       std::function<uint64_t(uint64_t, uint64_t)> func) const override;
 
+  Error parse_special_tokens(const nlohmann::json& parsed_json);
+  Error parse_tokens(const nlohmann::json& parsed_json);
+  Error setup_normalizer(const nlohmann::json& parsed_json);
+  Error setup_pretokenizer(const nlohmann::json& parsed_json);
+  Error setup_postprocessor(const nlohmann::json& parsed_json);
+  Error setup_decoder(const nlohmann::json& parsed_json);
+  Error parse_merges(const nlohmann::json& parsed_json);
+  Error setup_special_token_ids(
+      const std::string& path,
+      const nlohmann::json& parsed_json,
+      const std::string& model_config_json,
+      const std::string& special_tokens_map_json);
+
   Normalizer::Ptr _normalizer;
   PreTokenizer::Ptr _pretokenizer;
+  PostProcessor::Ptr _postprocessor;
   TokenDecoder::Ptr _decoder;
 
   std::unique_ptr<detail::MergeMap> merge_map_;
   std::optional<detail::TokenMap>
       merge_ranks_; // Pre-computed merge ranks for BPE
+  bool byte_fallback_ = false;
+  bool unk_token_is_configured_ = false;
 };
 
 } // namespace tokenizers

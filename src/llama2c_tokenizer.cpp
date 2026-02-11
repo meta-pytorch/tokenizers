@@ -66,6 +66,7 @@ Error Llama2cTokenizer::load(const std::string& tokenizer_path) {
   vocab_size_ = tokenizer_vocab_size;
   bos_tok_ = metadata[1];
   eos_tok_ = metadata[2];
+  unk_tok_ = 0; // Llama2c implicitly uses 0 for UNK
   max_token_length_ = metadata[3];
 
   // allocate space for the vocabulary
@@ -121,7 +122,6 @@ Result<std::string> Llama2cTokenizer::id_to_piece(uint64_t token) const {
   TK_CHECK_OK_OR_RETURN_ERROR(_decode_verify(token));
   return std::string(vocab_[token]);
 }
-
 /**
  * @brief Decode a token into string.
  *
@@ -132,7 +132,9 @@ Result<std::string> Llama2cTokenizer::id_to_piece(uint64_t token) const {
  */
 Result<std::string> Llama2cTokenizer::decode(
     uint64_t prev_token,
-    uint64_t token) const {
+    uint64_t token,
+    bool skip_special_tokens) const {
+  (void)skip_special_tokens; // Mark as unused
   TK_CHECK_OK_OR_RETURN_ERROR(_decode_verify(token));
   const char* piece = vocab_[token];
   // following BOS token, sentencepiece decoder strips any leading
@@ -160,6 +162,20 @@ str_lookup(const char* str, TokenIndex* sorted_vocab, int32_t vocab_size) {
   TokenIndex* res = (TokenIndex*)bsearch(
       &tok, sorted_vocab, vocab_size, sizeof(TokenIndex), compare_tokens);
   return res != nullptr ? res->id : -1;
+}
+
+Result<uint64_t> Llama2cTokenizer::piece_to_id(const std::string& text) const {
+  if (!initialized_) {
+    TK_LOG(Error, "Tokenizer not initialized");
+    return Error::Uninitialized;
+  }
+  int32_t id = str_lookup(text.c_str(), sorted_vocab_.get(), vocab_size_);
+  if (id != -1) {
+    return static_cast<uint64_t>(id);
+  } else {
+    TK_LOG(Debug, "Piece '%s' not found in vocabulary", text.c_str());
+    return Error::OutOfRange;
+  }
 }
 
 /**

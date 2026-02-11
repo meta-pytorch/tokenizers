@@ -49,13 +49,19 @@ TEST(HFTokenizerTest, TestEncodeWithoutLoad) {
 
 TEST(HFTokenizerTest, TestDecodeWithoutLoad) {
   HFTokenizer tokenizer;
-  auto result = tokenizer.decode(0, 0);
+  auto result = tokenizer.decode({0, 0});
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
 TEST(HFTokenizerTest, TestIdToPieceWithoutLoad) {
   HFTokenizer tokenizer;
   auto result = tokenizer.id_to_piece(0);
+  EXPECT_EQ(result.error(), Error::Uninitialized);
+}
+
+TEST(HFTokenizerTest, TestPieceToIdWithoutLoad) {
+  HFTokenizer tokenizer;
+  auto result = tokenizer.piece_to_id("<s>");
   EXPECT_EQ(result.error(), Error::Uninitialized);
 }
 
@@ -136,19 +142,92 @@ TEST(HFTokenizerTest, IdToPieceOutOfRangeFails) {
   EXPECT_EQ(result.error(), Error::OutOfRange);
 }
 
+TEST(HFTokenizerTest, TestPieceToId) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("test_hf_tokenizer.json");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  auto unk = tokenizer.piece_to_id("<unk>");
+  EXPECT_EQ(unk.error(), Error::Ok);
+  EXPECT_EQ(unk.get(), 0);
+
+  auto bos = tokenizer.piece_to_id("<s>");
+  EXPECT_EQ(bos.error(), Error::Ok);
+  EXPECT_EQ(bos.get(), 1);
+
+  auto hello = tokenizer.piece_to_id("▁Hello");
+  EXPECT_EQ(hello.error(), Error::Ok);
+  EXPECT_EQ(hello.get(), 8);
+
+  auto world = tokenizer.piece_to_id("▁world!");
+  EXPECT_EQ(world.error(), Error::Ok);
+  EXPECT_EQ(world.get(), 9);
+}
+
+TEST(HFTokenizerTest, PieceToIdNotFoundFails) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("test_hf_tokenizer.json");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  auto result = tokenizer.piece_to_id("not_a_real_piece");
+  EXPECT_EQ(result.error(), Error::OutOfRange);
+}
+
 TEST(HFTokenizerTest, TestEncode) {
   HFTokenizer tokenizer;
   auto path = _get_resource_path("test_hf_tokenizer.json");
   auto error = tokenizer.load(path);
   EXPECT_EQ(error, Error::Ok);
   std::string text = "Hello world!";
-  auto result = tokenizer.encode(text, /*bos*/ 1, /*eos*/ 0);
+  auto result = tokenizer.encode(text, /*bos*/ 1, /*eos*/ 1);
   EXPECT_TRUE(result.ok());
   // Based on our test tokenizer vocab:
   // "Hello world!" should tokenize to something like [1, 8, 9] or [1, 4, 5, 6,
   // 7] depending on how the BPE merges work
   EXPECT_GT(result.get().size(), 0);
-  EXPECT_EQ(result.get()[0], 0); // BOS token (default BOS ID)
+  EXPECT_EQ(result.get()[0], 4); // First token 'H' from "Hello"
+}
+
+TEST(HFTokenizerTest, TestDecodeBatch) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("hf_tokenizer_dir/");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+  // Test with tokens from our vocab: <s> (1), ▁Hello (8), ▁world! (9)
+  // Note: in hf_tokenizer_dir, bos is 128000
+  uint64_t bos = tokenizer.bos_tok();
+  std::vector<uint64_t> tokens = {bos, 8, 9};
+
+  // skip_special_tokens = false
+  auto result_false = tokenizer.decode(tokens, false);
+  EXPECT_TRUE(result_false.ok());
+  EXPECT_EQ(result_false.get(), "<|begin_of_text|>▁Hello▁world!");
+
+  // skip_special_tokens = true
+  auto result_true = tokenizer.decode(tokens, true);
+  EXPECT_TRUE(result_true.ok());
+  EXPECT_EQ(result_true.get(), "▁Hello▁world!");
+}
+
+TEST(HFTokenizerTest, TestDecodeSpecialTokens) {
+  HFTokenizer tokenizer;
+  auto path = _get_resource_path("hf_tokenizer_dir/");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+
+  uint64_t bos = tokenizer.bos_tok();
+
+  // Single token decode: skip_special_tokens = false
+  auto res_false = tokenizer.decode(0, bos, false);
+  EXPECT_TRUE(res_false.ok());
+  EXPECT_EQ(res_false.get(), "<|begin_of_text|>");
+
+  // Single token decode: skip_special_tokens = true
+  auto res_true = tokenizer.decode(0, bos, true);
+  EXPECT_TRUE(res_true.ok());
+  EXPECT_EQ(res_true.get(), "");
 }
 
 TEST(HFTokenizerTest, TestDecode) {
@@ -165,7 +244,6 @@ TEST(HFTokenizerTest, TestDecode) {
     EXPECT_FALSE(result.get().empty());
   }
 }
-
 // Test that BPE merges are correctly parsed from legacy string format ("a b")
 // This is the standard HuggingFace tokenizer.json format
 TEST(HFTokenizerTest, TestBPEMergeLegacyFormat) {
@@ -340,6 +418,208 @@ TEST(HFTokenizerTest, TestBPEMergeEncode) {
   // Note: This test may not produce the expected result due to ByteLevel
   // pre-tokenizer transforming input bytes. The primary purpose is to
   // verify that merges are parsed and the tokenizer loads successfully.
+}
+
+TEST(HFTokenizerTest, TestByteFallback) {
+  // Create a minimal tokenizer with byte fallback enabled
+  // Vocab: "a": 0, "<0x62>": 1 (for 'b')
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "a": 0,
+        "<0x62>": 1
+      },
+      "merges": [],
+      "byte_fallback": true
+    },
+    "normalizer": null,
+    "pre_tokenizer": null,
+    "post_processor": null,
+    "decoder": {
+      "type": "ByteLevel"
+    },
+    "added_tokens": []
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  auto error = tokenizer.load(tmpfile.path());
+  EXPECT_EQ(error, Error::Ok);
+
+  // 'a' is in vocab, 'b' should fallback to <0x62>
+  auto result = tokenizer.encode("ab", 0, 0);
+  EXPECT_TRUE(result.ok());
+  std::vector<uint64_t> expected = {0, 1};
+  EXPECT_EQ(result.get(), expected);
+
+  // Decode should also work if we have a decoder
+  auto decoded = tokenizer.decode(result.get());
+  EXPECT_TRUE(decoded.ok());
+  EXPECT_EQ(decoded.get(), "a<0x62>");
+}
+
+TEST(HFTokenizerTest, TestProperRoundTrip) {
+  // We use a custom config here because the standard 'test_hf_tokenizer.json'
+  // uses a Replace normalizer (" " -> "▁"). To achieve decode(encode(x)) === x,
+  // we must provide a Decoder Sequence that reverses this mapping.
+
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "H": 0, "e": 1, "l": 2, "o": 3, "w": 4, "r": 5, "d": 6, "!": 7, "▁": 8
+      },
+      "merges": []
+    },
+    "normalizer": {
+      "type": "Replace",
+      "pattern": { "String": " " },
+      "content": "▁"
+    },
+    "pre_tokenizer": null,
+    "post_processor": null,
+    "decoder": {
+      "type": "Sequence",
+      "decoders": [
+        {
+          "type": "Replace",
+          "pattern": { "String": "▁" },
+          "content": " "
+        }
+      ]
+    },
+    "added_tokens": []
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  auto error = tokenizer.load(tmpfile.path());
+  EXPECT_EQ(error, Error::Ok);
+
+  std::string input = "Hello world!";
+
+  auto encoded = tokenizer.encode(input, 0, 0);
+  ASSERT_TRUE(encoded.ok());
+
+  auto decoded = tokenizer.decode(encoded.get());
+  ASSERT_TRUE(decoded.ok());
+
+  // Identity is now preserved because the Decoder Sequence is the
+  // mathematical inverse of the Normalizer + PreTokenizer.
+  EXPECT_EQ(decoded.get(), input);
+}
+
+TEST(HFTokenizerTest, TestNullPreTokenizer) {
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "hello": 0,
+        "world": 1
+      },
+      "merges": []
+    },
+    "normalizer": null,
+    "pre_tokenizer": null,
+    "post_processor": null,
+    "added_tokens": []
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  auto error = tokenizer.load(tmpfile.path());
+  EXPECT_EQ(error, Error::Ok);
+
+  auto result = tokenizer.encode("hello", 0, 0);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(result.get().size(), 1);
+  EXPECT_EQ(result.get()[0], 0);
+}
+
+TEST(HFTokenizerTest, TestEmptyAndUnknown) {
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "a": 0
+      },
+      "merges": [],
+      "unk_token": "[UNK]"
+    },
+    "normalizer": null,
+    "pre_tokenizer": null,
+    "post_processor": null,
+    "added_tokens": [
+      {
+        "id": 1,
+        "content": "[UNK]",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false
+      }
+    ]
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  auto error = tokenizer.load(tmpfile.path());
+  EXPECT_EQ(error, Error::Ok);
+
+  // Empty string
+  auto empty_result = tokenizer.encode("", 0, 0);
+  EXPECT_TRUE(empty_result.ok());
+  EXPECT_TRUE(empty_result.get().empty());
+
+  // Unknown character
+  auto unk_result = tokenizer.encode("b", 0, 0);
+  EXPECT_TRUE(unk_result.ok());
+  std::vector<uint64_t> expected_unk = {1}; // [UNK]
+  EXPECT_EQ(unk_result.get(), expected_unk);
+}
+
+TEST(HFTokenizerTest, TestUnkTokenConfiguration) {
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "a": 0
+      },
+      "merges": [],
+      "unk_token": "<unk>"
+    },
+    "normalizer": null,
+    "pre_tokenizer": null,
+    "post_processor": null,
+    "added_tokens": [
+      {
+        "id": 1,
+        "content": "<unk>",
+        "single_word": false,
+        "lstrip": false,
+        "rstrip": false,
+        "normalized": false
+      }
+    ]
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  auto error = tokenizer.load(tmpfile.path());
+  EXPECT_EQ(error, Error::Ok);
+
+  // Encode unknown
+  auto result = tokenizer.encode("xyz", 0, 0);
+  EXPECT_TRUE(result.ok());
+  // 'x', 'y', 'z' are all unknown
+  std::vector<uint64_t> expected = {1, 1, 1};
+  EXPECT_EQ(result.get(), expected);
 }
 
 } // namespace tokenizers

@@ -10,6 +10,7 @@ __pycache__/
 # Build and tool-generated files
 build/
 cmake-out*
+.cache/clangd
 dist/
 pip-out/
 *.egg-info

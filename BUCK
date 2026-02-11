@@ -132,6 +132,7 @@ runtime.cxx_library(
         "src/normalizer.cpp",
         "src/pre_tokenizer.cpp",
         "src/token_decoder.cpp",
+        "src/post_processor.cpp",
     ],
     platforms = PLATFORMS,
     visibility = [
