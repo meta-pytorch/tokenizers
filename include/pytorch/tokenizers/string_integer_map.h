@@ -22,6 +22,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include <pytorch/tokenizers/error.h>
+#include <pytorch/tokenizers/result.h>
+
 namespace tokenizers {
 namespace detail {
 
@@ -41,34 +44,39 @@ template <
     typename TAllocator = std::allocator<std::uint8_t>>
 class StringIntegerMap {
  public:
-  /// @name Constructors
-  /// @{
-
-  /// Default constructor is deleted, as this container is intended to be
-  /// constructed with a map of strings to integers.
+  /// Default constructor is deleted.
   StringIntegerMap() = delete;
 
-  /**
-   * Construct a StringIntegerMap from a map of strings to integers.  Each
-   * string and integer in the map must be unique.
-   * @param map map of strings to integers
-   */
-  template <typename TMap>
-  explicit StringIntegerMap(const TMap& map);
+  /// StringIntegerMap is move-only.
+  ~StringIntegerMap() = default;
+  StringIntegerMap(const StringIntegerMap&) = delete;
+  StringIntegerMap& operator=(const StringIntegerMap&) = delete;
+  StringIntegerMap(StringIntegerMap&&) = default;
+  StringIntegerMap& operator=(StringIntegerMap&&) = default;
 
   /**
-   * Construct a StringIntegerMap from a map of strings to integers, explicitly
-   * intializing the integer and string hash objects.  Each string and integer
-   * in the map must be unique.
+   * Create a StringIntegerMap from a map of strings to integers,
+   * detecting duplicate tokens or ranks during construction.
    * @param map map of strings to integers
+   * @return Result containing the map, or an error if duplicates are detected
    */
   template <typename TMap>
-  StringIntegerMap(
+  static Result<StringIntegerMap> create(const TMap& map);
+
+  /**
+   * Create a StringIntegerMap from a map of strings to integers,
+   * detecting duplicate tokens or ranks during construction.
+   * @param map map of strings to integers
+   * @param string_hasher hasher for strings
+   * @param integer_hasher hasher for integers
+   * @return Result containing the map, or an error if duplicates are detected
+   */
+  template <typename TMap>
+  static Result<StringIntegerMap> create(
       const TMap& map,
       TStringHash string_hasher,
       TIntegerHash integer_hasher);
 
-  /// @}
   /// @name Accessors
   /// @{
 
@@ -152,12 +160,20 @@ class StringIntegerMap {
 
   static std::uint8_t getSmallHash(std::size_t hash);
 
-  /// Get the string data and string small hash stored in the element buffer at
-  /// the The hasher used for strings.
-  const TStringHash string_hasher_ = {};
+  /// Construct with hashers only; init() must be called to complete setup.
+  StringIntegerMap(TStringHash string_hasher, TIntegerHash integer_hasher);
+
+  /// Initialize the map from a map of strings to integers. Must only be
+  /// called once, on a freshly constructed (uninitialized) instance.
+  /// @return Error::Ok on success, or Error::ParseFailure if duplicates found.
+  template <typename TMap>
+  Error init(const TMap& map);
+
+  /// The hasher used for strings.
+  TStringHash string_hasher_ = {};
 
   /// The hasher used for integers.
-  const TIntegerHash integer_hasher_ = {};
+  TIntegerHash integer_hasher_ = {};
 
   /// String bucket references.
   std::vector<std::uint8_t, TAllocator> integer_bucket_data_;
@@ -204,18 +220,18 @@ class StringIntegerMap {
 };
 
 template <typename TStringHash, typename TIntegerHash, typename TAllocator>
-template <typename TMap>
 StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::StringIntegerMap(
-    const TMap& map)
-    : StringIntegerMap(map, TStringHash(), TIntegerHash()) {}
+    TStringHash string_hasher,
+    TIntegerHash integer_hasher)
+    : string_hasher_(std::move(string_hasher)),
+      integer_hasher_(std::move(integer_hasher)) {}
 
 template <typename TStringHash, typename TIntegerHash, typename TAllocator>
 template <typename TMap>
-StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::StringIntegerMap(
-    const TMap& map,
-    TStringHash string_hasher,
-    TIntegerHash integer_hasher)
-    : string_hasher_(string_hasher), integer_hasher_(integer_hasher) {
+Error StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::init(
+    const TMap& map) {
+  TK_CHECK_OR_RETURN_ERROR(
+      size_ == 0, Internal, "init() called on an already-initialized map");
   assert(map.size() <= std::numeric_limits<std::uint32_t>::max());
   bucket_count_ = size_ = map.size();
 
@@ -224,10 +240,13 @@ StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::StringIntegerMap(
     std::string_view string;
     std::size_t hash = 0;
     std::size_t element_offset = 0;
+    std::size_t original_index = 0;
   };
 
   std::vector<BuilderElement> builder_string_elements;
   std::vector<BuilderElement> builder_integer_elements;
+  builder_string_elements.reserve(map.size());
+  builder_integer_elements.reserve(map.size());
 
   //
   // Calculate various item sizes and gather the builder elements.
@@ -237,13 +256,16 @@ StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::StringIntegerMap(
   std::uint64_t largest_integer = 0;
   std::size_t total_string_size = 0;
 
+  std::size_t idx = 0;
   for (const auto& [str, integer] : map) {
     total_string_size += str.size();
     largest_string_size = std::max(largest_string_size, str.size());
     largest_integer = std::max(largest_integer, integer);
-    builder_string_elements.push_back({integer, str, string_hasher_(str)});
+    builder_string_elements.push_back(
+        {integer, str, string_hasher_(str), 0, idx});
     builder_integer_elements.push_back(
-        {integer, str, integer_hasher_(integer)});
+        {integer, str, integer_hasher_(integer), 0, idx});
+    ++idx;
   }
 
   integer_ = VariableSizedInteger<std::uint64_t>(largest_integer);
@@ -284,50 +306,121 @@ StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::StringIntegerMap(
   // Sort the builder elements.
   //
 
-  std::sort(
-      std::begin(builder_string_elements),
-      std::end(builder_string_elements),
-      [this](const BuilderElement& first, const BuilderElement& second) {
-        const auto first_bucket = first.hash % bucket_count_;
-        const auto second_bucket = second.hash % bucket_count_;
-        if (first_bucket == second_bucket) {
-          const auto first_small_hash = getSmallHash(first.hash);
-          const auto second_small_hash = getSmallHash(second.hash);
-          return first_small_hash < second_small_hash;
+  // Counting sort by bucket index (O(n) vs O(n log n))
+  {
+    std::vector<std::size_t> counts(bucket_count_ + 1, 0);
+    for (const auto& e : builder_string_elements) {
+      counts[e.hash % bucket_count_]++;
+    }
+    std::size_t total = 0;
+    for (auto& c : counts) {
+      auto old = c;
+      c = total;
+      total += old;
+    }
+    std::vector<BuilderElement> sorted(builder_string_elements.size());
+    for (auto& e : builder_string_elements) {
+      sorted[counts[e.hash % bucket_count_]++] = std::move(e);
+    }
+    builder_string_elements = std::move(sorted);
+
+    // Sort within each bucket by small_hash, then by string to ensure
+    // identical strings are adjacent for duplicate detection.
+    {
+      std::size_t bucket_start = 0;
+      for (std::size_t b = 0; b < bucket_count_; ++b) {
+        std::size_t bucket_end = counts[b];
+        if (bucket_end - bucket_start > 1) {
+          std::sort(
+              builder_string_elements.begin() + bucket_start,
+              builder_string_elements.begin() + bucket_end,
+              [](const BuilderElement& a, const BuilderElement& b) {
+                auto ah = getSmallHash(a.hash);
+                auto bh = getSmallHash(b.hash);
+                if (ah != bh) {
+                  return ah < bh;
+                }
+                return a.string < b.string;
+              });
         }
+        bucket_start = bucket_end;
+      }
+    }
+  }
 
-        return first_bucket < second_bucket;
-      });
+  // Detect duplicate tokens (adjacent after sort)
+  for (std::size_t i = 1; i < builder_string_elements.size(); ++i) {
+    if (builder_string_elements[i].string ==
+        builder_string_elements[i - 1].string) {
+      TK_LOG(
+          Error,
+          "duplicate token: %s",
+          std::string(builder_string_elements[i].string).c_str());
+      return Error::ParseFailure;
+    }
+  }
 
-  std::sort(
-      std::begin(builder_integer_elements),
-      std::end(builder_integer_elements),
-      [this](const BuilderElement& first, const BuilderElement& second) {
-        const auto first_bucket = first.hash % bucket_count_;
-        const auto second_bucket = second.hash % bucket_count_;
-        if (first_bucket == second_bucket) {
-          return first.integer < second.integer;
+  // Counting sort by bucket index (O(n) vs O(n log n))
+  {
+    std::vector<std::size_t> counts(bucket_count_ + 1, 0);
+    for (const auto& e : builder_integer_elements) {
+      counts[e.hash % bucket_count_]++;
+    }
+    std::size_t total = 0;
+    for (auto& c : counts) {
+      auto old = c;
+      c = total;
+      total += old;
+    }
+    std::vector<BuilderElement> sorted(builder_integer_elements.size());
+    for (auto& e : builder_integer_elements) {
+      sorted[counts[e.hash % bucket_count_]++] = std::move(e);
+    }
+    builder_integer_elements = std::move(sorted);
+
+    // Sort within each bucket by integer value
+    {
+      std::size_t bucket_start = 0;
+      for (std::size_t b = 0; b < bucket_count_; ++b) {
+        std::size_t bucket_end = counts[b];
+        if (bucket_end - bucket_start > 1) {
+          std::sort(
+              builder_integer_elements.begin() + bucket_start,
+              builder_integer_elements.begin() + bucket_end,
+              [](const BuilderElement& a, const BuilderElement& b) {
+                return a.integer < b.integer;
+              });
         }
+        bucket_start = bucket_end;
+      }
+    }
+  }
 
-        return first_bucket < second_bucket;
-      });
+  // Detect duplicate ranks (adjacent after sort)
+  for (std::size_t i = 1; i < builder_integer_elements.size(); ++i) {
+    if (builder_integer_elements[i].integer ==
+        builder_integer_elements[i - 1].integer) {
+      TK_LOG(
+          Error,
+          "duplicate rank: %llu",
+          static_cast<unsigned long long>(builder_integer_elements[i].integer));
+      return Error::ParseFailure;
+    }
+  }
 
   //
   // Lay out the string elements and record their positions.
   //
 
-  std::unordered_map<std::string_view, std::size_t>
-      string_element_byte_index_map;
+  std::vector<std::size_t> string_offsets_by_index(size_);
   string_element_data_.resize(string_element_data_size + sizeof(std::uint64_t));
   auto* string_element = string_element_data_.data();
   for (auto& builder_element : builder_string_elements) {
     builder_element.element_offset =
         string_element - string_element_data_.data();
 
-    auto insert_result = string_element_byte_index_map.insert(
-        {builder_element.string, builder_element.element_offset});
-    assert(insert_result.second);
-    (void)insert_result;
+    string_offsets_by_index[builder_element.original_index] =
+        builder_element.element_offset;
 
     string_element = integer_.write(string_element, builder_element.integer);
     string_element =
@@ -355,16 +448,13 @@ StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::StringIntegerMap(
   for (auto& builder_element : builder_integer_elements) {
     builder_element.element_offset =
         integer_element - integer_element_data_.data();
-    auto string_element_byte_index_iter =
-        string_element_byte_index_map.find(builder_element.string);
-    assert(
-        string_element_byte_index_iter !=
-        std::end(string_element_byte_index_map));
+    auto string_element_byte_offset =
+        string_offsets_by_index[builder_element.original_index];
     integer_element = integer_.write(integer_element, builder_element.integer);
     integer_element =
         string_size_.write(integer_element, builder_element.string.size());
-    integer_element = string_offset_.write(
-        integer_element, string_element_byte_index_iter->second);
+    integer_element =
+        string_offset_.write(integer_element, string_element_byte_offset);
     assert(
         integer_element >= integer_element_data_.data() &&
         integer_element <=
@@ -420,6 +510,31 @@ StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::StringIntegerMap(
       ++builder_integer_elements_iter;
     }
   }
+
+  return Error::Ok;
+}
+
+template <typename TStringHash, typename TIntegerHash, typename TAllocator>
+template <typename TMap>
+Result<StringIntegerMap<TStringHash, TIntegerHash, TAllocator>>
+StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::create(
+    const TMap& map) {
+  return create(map, TStringHash(), TIntegerHash());
+}
+
+template <typename TStringHash, typename TIntegerHash, typename TAllocator>
+template <typename TMap>
+Result<StringIntegerMap<TStringHash, TIntegerHash, TAllocator>>
+StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::create(
+    const TMap& map,
+    TStringHash string_hasher,
+    TIntegerHash integer_hasher) {
+  StringIntegerMap result(std::move(string_hasher), std::move(integer_hasher));
+  auto error = result.init(map);
+  if (error != Error::Ok) {
+    return error;
+  }
+  return std::move(result);
 }
 
 template <typename TStringHash, typename TIntegerHash, typename TAllocator>
