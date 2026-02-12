@@ -43,42 +43,7 @@ static Result<TokenMap> build_token_map(
       std::is_integral_v<TRank> && std::is_unsigned_v<TRank>,
       "TRank must be an unsigned integer");
 
-  std::sort(
-      container.begin(), container.end(), [](const auto& a, const auto& b) {
-        return a.first < b.first;
-      });
-
-  auto duplicate_begin = std::unique(
-      container.begin(), container.end(), [](const auto& a, const auto& b) {
-        return a.first == b.first;
-      });
-
-  TK_CHECK_OR_RETURN_ERROR(
-      duplicate_begin == container.end(),
-      ParseFailure,
-      "duplicate token: %s rank: %llu",
-      duplicate_begin->first.c_str(),
-      static_cast<unsigned long long>(duplicate_begin->second));
-
-  std::sort(
-      container.begin(), container.end(), [](const auto& a, const auto& b) {
-        return a.second < b.second;
-      });
-
-  duplicate_begin = std::unique(
-      container.begin(), container.end(), [](const auto& a, const auto& b) {
-        return a.second == b.second;
-      });
-
-  TK_CHECK_OR_RETURN_ERROR(
-      duplicate_begin == container.end(),
-      ParseFailure,
-      "duplicate rank: %llu"
-      " token: %s",
-      static_cast<unsigned long long>(duplicate_begin->second),
-      duplicate_begin->first.c_str());
-
-  return TokenMap(container);
+  return TokenMap::create(container);
 };
 
 template <typename TContainer, typename TTokenAccessor, typename TRankAccessor>
