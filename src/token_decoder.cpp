@@ -10,8 +10,6 @@
 #include <pytorch/tokenizers/token_decoder.h>
 
 #include <pytorch/tokenizers/log.h>
-// Standard
-#include <cstdarg>
 
 // Third Party
 #include <nlohmann/json.hpp>
@@ -96,28 +94,6 @@ TokenDecoderConfig& TokenDecoderConfig::parse_json(const json& json_config) {
 }
 
 // ByteLevel ///////////////////////////////////////////////////////////////////
-
-namespace {
-
-// Copied from llama.cpp
-// CITE:
-// https://github.com/ggerganov/llama.cpp/blob/master/src/llama-vocab.cpp#L20
-static std::string format(const char* fmt, ...) {
-  va_list ap;
-  va_list ap2;
-  va_start(ap, fmt);
-  va_copy(ap2, ap);
-  int size = vsnprintf(NULL, 0, fmt, ap);
-  // GGML_ASSERT(size >= 0 && size < INT_MAX); // NOLINT
-  std::vector<char> buf(size + 1);
-  // int size2 = vsnprintf(buf.data(), size + 1, fmt, ap2);
-  // GGML_ASSERT(size2 == size);
-  va_end(ap2);
-  va_end(ap);
-  return std::string(buf.data(), size);
-}
-
-} // namespace
 
 std::vector<std::string> ByteLevelTokenDecoder::decode(
     const std::vector<std::string>& tokens) const {

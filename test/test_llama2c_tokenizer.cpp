@@ -136,7 +136,8 @@ TEST_F(Llama2cTokenizerTest, TestDecodeSpecialTokens) {
   EXPECT_EQ(res_false.get(), "<s>");
 
   // skip_special_tokens = true
-  // Llama2cTokenizer ignores the skip_special_tokens flag and returns the token.
+  // Llama2cTokenizer ignores the skip_special_tokens flag and returns the
+  // token.
   auto res_true = tokenizer_->decode(0, bos, true);
   EXPECT_TRUE(res_true.ok());
   EXPECT_EQ(res_true.get(), "<s>");

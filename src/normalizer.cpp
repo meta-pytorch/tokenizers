@@ -136,7 +136,6 @@ std::string ReplaceNormalizer::normalize(const std::string& input) const {
   return result;
 }
 
-
 // PrependNormalizer ///////////////////////////////////////////////////////////
 
 std::string PrependNormalizer::normalize(const std::string& input) const {
