@@ -114,8 +114,11 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const Tokenizer& self, uint64_t token, bool skip_special_tokens = false) {
-            return unwrap_result(self.decode(token, token, skip_special_tokens));
+          [](const Tokenizer& self,
+             uint64_t token,
+             bool skip_special_tokens = false) {
+            return unwrap_result(
+                self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
           py::arg("skip_special_tokens") = false)
@@ -149,14 +152,18 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const HFTokenizer& self, uint64_t token, bool skip_special_tokens = false) {
-            return unwrap_result(self.decode(token, token, skip_special_tokens));
+          [](const HFTokenizer& self,
+             uint64_t token,
+             bool skip_special_tokens = false) {
+            return unwrap_result(
+                self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
           py::arg("skip_special_tokens") = false)
       .def(
           "decode_batch",
-          [](const HFTokenizer& self, const std::vector<uint64_t>& tokens,
+          [](const HFTokenizer& self,
+             const std::vector<uint64_t>& tokens,
              bool skip_special_tokens = false) {
             return unwrap_result(self.decode(tokens, skip_special_tokens));
           },
@@ -199,8 +206,11 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const Tiktoken& self, uint64_t token, bool skip_special_tokens = false) {
-            return unwrap_result(self.decode(token, token, skip_special_tokens));
+          [](const Tiktoken& self,
+             uint64_t token,
+             bool skip_special_tokens = false) {
+            return unwrap_result(
+                self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
           py::arg("skip_special_tokens") = false);
@@ -230,8 +240,11 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const Llama2cTokenizer& self, uint64_t token, bool skip_special_tokens = false) {
-            return unwrap_result(self.decode(token, token, skip_special_tokens));
+          [](const Llama2cTokenizer& self,
+             uint64_t token,
+             bool skip_special_tokens = false) {
+            return unwrap_result(
+                self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
           py::arg("skip_special_tokens") = false);
@@ -262,8 +275,11 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const SPTokenizer& self, uint64_t token, bool skip_special_tokens = false) {
-            return unwrap_result(self.decode(token, token, skip_special_tokens));
+          [](const SPTokenizer& self,
+             uint64_t token,
+             bool skip_special_tokens = false) {
+            return unwrap_result(
+                self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
           py::arg("skip_special_tokens") = false);
@@ -293,18 +309,24 @@ PYBIND11_MODULE(pytorch_tokenizers_cpp, m) {
           py::arg("eos") = 0)
       .def(
           "decode",
-          [](const Tekken& self, uint64_t token, bool skip_special_tokens = false) {
-            return unwrap_result(self.decode(token, token, skip_special_tokens));
+          [](const Tekken& self,
+             uint64_t token,
+             bool skip_special_tokens = false) {
+            return unwrap_result(
+                self.decode(token, token, skip_special_tokens));
           },
           py::arg("token"),
           py::arg("skip_special_tokens") = false)
       .def(
           "decode_batch",
-          [](const Tekken& self, const std::vector<uint64_t>& tokens, bool skip_special_tokens = false) {
+          [](const Tekken& self,
+             const std::vector<uint64_t>& tokens,
+             bool skip_special_tokens = false) {
             std::string result;
             for (size_t i = 0; i < tokens.size(); ++i) {
               uint64_t prev_token = (i == 0) ? 0 : tokens[i - 1];
-              auto decoded = self.decode(prev_token, tokens[i], skip_special_tokens);
+              auto decoded =
+                  self.decode(prev_token, tokens[i], skip_special_tokens);
               if (decoded.error() != Error::Ok) {
                 throw std::runtime_error("Failed to decode token");
               }

@@ -129,13 +129,6 @@ std::map<std::string, SpecialToken> parse_special_tokens(const json& j) {
   return map;
 }
 
-std::pair<std::string, uint64_t> parse_pair(const json& val) {
-  if (val.is_array() && val.size() >= 2) {
-    return {val[0].get<std::string>(), val[1].get<uint64_t>()};
-  }
-  return {"", 0};
-};
-
 } // namespace
 
 // PostProcessorConfig /////////////////////////////////////////////////////////
