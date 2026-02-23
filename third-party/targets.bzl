@@ -11,6 +11,8 @@ def define_common_targets():
                     "abseil-cpp/absl/**/*mock*.cc",
                     "abseil-cpp/absl/**/*matchers*.cc",
                     "abseil-cpp/absl/**/*benchmark*.cc",
+                    "abseil-cpp/absl/hash/internal/print_hash_of.cc",
+                    "abseil-cpp/absl/random/internal/gaussian_distribution_gentables.cc",
                 ],
             ),
             _is_external_target = True,
