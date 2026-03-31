@@ -27,15 +27,16 @@ jobs:
       os: macos-arm64
       test-infra-repository: pytorch/test-infra
       test-infra-ref: main
-      with-cuda: disable
-      with-rocm: disable
-      with-cpu: enable
-      with-xpu: disable
+      with-cuda: disabled
+      with-rocm: disabled
       python-versions: '["3.10", "3.11", "3.12", "3.13"]'
 
   build:
     name: Build macOS wheels
     needs: generate-matrix
+    permissions:
+      id-token: write
+      contents: read
     uses: pytorch/test-infra/.github/workflows/build_wheels_macos.yml@main
     with:
       repository: meta-pytorch/tokenizers
