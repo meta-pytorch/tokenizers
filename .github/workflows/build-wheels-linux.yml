@@ -46,4 +46,5 @@ jobs:
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       trigger-event: ${{ github.event_name }}
       package-name: pytorch_tokenizers
+      pre-script: .ci/scripts/wheel/pre_build_script.sh
       smoke-test-script: .ci/scripts/wheel/test_wheel.py
