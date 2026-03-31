@@ -43,7 +43,21 @@ def run_pytest(test_files: Sequence[Path], cwd: Path) -> int:
     return result.returncode
 
 
+def ensure_pytest() -> None:
+    """Install pytest if it is not already available."""
+    try:
+        import pytest  # noqa: F401
+    except ImportError:
+        print("pytest not found, installing...")
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "pytest"],
+            check=True,
+        )
+
+
 def main() -> int:
+    ensure_pytest()
+
     repo_root = Path(__file__).resolve().parents[3]
     test_dir = repo_root / "test"
 
