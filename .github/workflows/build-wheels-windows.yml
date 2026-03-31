@@ -21,12 +21,12 @@ on:
 jobs:
   generate-matrix:
     name: Generate Windows matrix
-    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@main
+    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@release/2.11
     with:
       package-type: wheel
       os: windows
       test-infra-repository: pytorch/test-infra
-      test-infra-ref: main
+      test-infra-ref: release/2.11
       with-cuda: disabled
       with-rocm: disabled
       python-versions: '["3.10", "3.11", "3.12", "3.13"]'
@@ -37,12 +37,12 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    uses: pytorch/test-infra/.github/workflows/build_wheels_windows.yml@main
+    uses: pytorch/test-infra/.github/workflows/build_wheels_windows.yml@release/2.11
     with:
       repository: meta-pytorch/tokenizers
       ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
       test-infra-repository: pytorch/test-infra
-      test-infra-ref: main
+      test-infra-ref: release/2.11
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       trigger-event: ${{ github.event_name }}
       package-name: pytorch_tokenizers
