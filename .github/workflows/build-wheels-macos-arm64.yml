@@ -47,4 +47,5 @@ jobs:
       trigger-event: ${{ github.event_name }}
       package-name: pytorch_tokenizers
       runner-type: macos-14-xlarge
+      setup-miniconda: true
       smoke-test-script: .ci/scripts/wheel/test_wheel.py
