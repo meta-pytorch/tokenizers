@@ -25,11 +25,11 @@ if errorlevel 1 exit /b 1
 
 set DISTUTILS_USE_SDK=1
 
-:: Create a short path symlink to avoid MAX_PATH issues.
+:: Create a short path junction at C:\tk to avoid MAX_PATH issues.
 :: The CI checkout path can be very long, e.g.:
 ::   C:\actions-runner\_work\tokenizers\tokenizers\meta-pytorch\tokenizers
-:: We create a junction at a shorter path.
-set "SHORT_DIR=%GITHUB_WORKSPACE%\tk"
+:: Using C:\tk keeps build paths well under 260 characters.
+set "SHORT_DIR=C:\tk"
 if exist "%SHORT_DIR%" rmdir "%SHORT_DIR%"
 mklink /J "%SHORT_DIR%" "%CD%"
 cd /d "%SHORT_DIR%"
