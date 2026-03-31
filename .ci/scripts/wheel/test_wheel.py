@@ -45,20 +45,25 @@ def run_pytest(test_files: Sequence[Path]) -> int:
         return result.returncode
 
 
-def ensure_pytest() -> None:
-    """Install pytest if it is not already available."""
-    try:
-        import pytest  # noqa: F401
-    except ImportError:
-        print("pytest not found, installing...")
+def ensure_dependencies() -> None:
+    """Install test dependencies if not already available."""
+    deps = ["pytest", "transformers"]
+    missing = []
+    for dep in deps:
+        try:
+            __import__(dep)
+        except ImportError:
+            missing.append(dep)
+    if missing:
+        print(f"Installing missing test dependencies: {missing}")
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "pytest"],
+            [sys.executable, "-m", "pip", "install", *missing],
             check=True,
         )
 
 
 def main() -> int:
-    ensure_pytest()
+    ensure_dependencies()
 
     repo_root = Path(__file__).resolve().parents[3]
     test_dir = repo_root / "test"
