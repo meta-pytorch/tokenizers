@@ -1,0 +1,51 @@
+name: Nova Build Wheels (Linux AArch64)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .ci/**/*
+      - .github/workflows/build-wheels-linux-aarch64.yml
+      - pyproject.toml
+      - setup.py
+    tags:
+      - ciflow/binaries/*
+  push:
+    tags:
+      - release/*
+      # NOTE: Binary build pipelines should only get triggered on release candidate builds
+      # Release candidate tags look like: v1.11.0-rc1
+      - v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+
+      - ciflow/binaries/*
+  release:
+    types: [published]
+
+jobs:
+  generate-matrix:
+    name: Generate Linux AArch64 matrix
+    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@main
+    with:
+      package-type: wheel
+      os: linux-aarch64
+      test-infra-repository: pytorch/test-infra
+      test-infra-ref: main
+      with-cuda: disable
+      with-rocm: disable
+      with-cpu: enable
+      with-xpu: disable
+      python-versions: '["3.10", "3.11", "3.12", "3.13"]'
+
+  build:
+    name: Build Linux AArch64 wheels
+    needs: generate-matrix
+    uses: pytorch/test-infra/.github/workflows/build_wheels_linux.yml@main
+    with:
+      repository: meta-pytorch/tokenizers
+      ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref_name }}
+      test-infra-repository: pytorch/test-infra
+      test-infra-ref: main
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      trigger-event: ${{ github.event_name }}
+      package-name: pytorch_tokenizers
+      smoke-test-script: .ci/scripts/wheel/test_wheel.py
+      architecture: aarch64
