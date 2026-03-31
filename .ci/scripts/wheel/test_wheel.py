@@ -18,31 +18,30 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Sequence
 
 
-def run_pytest(test_files: Sequence[Path]) -> int:
+def run_pytest(test_files: Sequence[Path], repo_root: Path) -> int:
     """Execute pytest on the provided files and propagate the return code."""
-    # Run from a temp directory to avoid importing the source tree's
-    # pytorch_tokenizers/ instead of the installed wheel package.
-    with tempfile.TemporaryDirectory() as tmpdir:
-        cmd = [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-vv",
-            *(str(test) for test in test_files),
-        ]
+    cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-vv",
+        *(str(test) for test in test_files),
+    ]
 
-        print(f"Running pytest with: {' '.join(cmd)}")
-        # Strip PYTHONPATH to avoid any repo root entries that could
-        # shadow the installed package.
-        env = os.environ.copy()
-        env.pop("PYTHONPATH", None)
-        result = subprocess.run(cmd, cwd=tmpdir, env=env, check=False)
-        return result.returncode
+    print(f"Running pytest with: {' '.join(cmd)}")
+    # Use repo_root as cwd so that relative paths to test resources
+    # (e.g. "test/resources/...") resolve correctly.
+    # Strip PYTHONPATH to prevent the repo's source tree from shadowing
+    # the installed wheel. Python won't auto-add cwd to sys.path when
+    # running via "python -m pytest".
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    result = subprocess.run(cmd, cwd=str(repo_root), env=env, check=False)
+    return result.returncode
 
 
 def ensure_dependencies() -> None:
@@ -72,7 +71,7 @@ def main() -> int:
         print(f"ERROR: Test directory not found: {test_dir}", file=sys.stderr)
         return 1
 
-    return run_pytest(sorted(test_dir.glob("test_*.py")))
+    return run_pytest(sorted(test_dir.glob("test_*.py")), repo_root)
 
 
 if __name__ == "__main__":
