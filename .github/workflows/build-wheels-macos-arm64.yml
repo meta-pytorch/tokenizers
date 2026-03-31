@@ -48,4 +48,5 @@ jobs:
       package-name: pytorch_tokenizers
       runner-type: macos-14-xlarge
       setup-miniconda: true
+      delocate-wheel: false
       smoke-test-script: .ci/scripts/wheel/test_wheel.py
