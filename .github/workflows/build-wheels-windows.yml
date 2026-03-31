@@ -8,8 +8,6 @@ on:
       - .github/workflows/build-wheels-windows.yml
       - pyproject.toml
       - setup.py
-    tags:
-      - ciflow/binaries/*
   push:
     tags:
       - release/*
