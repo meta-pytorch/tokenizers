@@ -113,15 +113,6 @@ target_include_directories(
 )
 target_link_libraries(tokenizers PUBLIC sentencepiece-static re2::re2)
 
-# On Linux aarch64, libatomic is needed for 64-bit atomic operations
-# used by abseil/re2.
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
-  find_library(ATOMIC_LIBRARY atomic)
-  if(ATOMIC_LIBRARY)
-    target_link_libraries(tokenizers PUBLIC ${ATOMIC_LIBRARY})
-  endif()
-endif()
-
 # Enable logging
 if(TOKENIZERS_ENABLE_LOGGING)
   target_compile_definitions(tokenizers PUBLIC TK_LOG_ENABLED)
