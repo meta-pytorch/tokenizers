@@ -18,29 +18,31 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Sequence
 
 
-def run_pytest(test_files: Sequence[Path], cwd: Path) -> int:
+def run_pytest(test_files: Sequence[Path]) -> int:
     """Execute pytest on the provided files and propagate the return code."""
-    env = os.environ.copy()
-    pythonpath_entries = [str(cwd)]
-    if existing_path := env.get("PYTHONPATH"):
-        pythonpath_entries.append(existing_path)
-    env["PYTHONPATH"] = os.pathsep.join(pythonpath_entries)
+    # Run from a temp directory to avoid importing the source tree's
+    # pytorch_tokenizers/ instead of the installed wheel package.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cmd = [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-vv",
+            *(str(test) for test in test_files),
+        ]
 
-    cmd = [
-        sys.executable,
-        "-m",
-        "pytest",
-        "-vv",
-        *(str(test) for test in test_files),
-    ]
-
-    print(f"Running pytest with: {' '.join(cmd)}")
-    result = subprocess.run(cmd, cwd=str(cwd), env=env, check=False)
-    return result.returncode
+        print(f"Running pytest with: {' '.join(cmd)}")
+        # Strip PYTHONPATH to avoid any repo root entries that could
+        # shadow the installed package.
+        env = os.environ.copy()
+        env.pop("PYTHONPATH", None)
+        result = subprocess.run(cmd, cwd=tmpdir, env=env, check=False)
+        return result.returncode
 
 
 def ensure_pytest() -> None:
@@ -65,7 +67,7 @@ def main() -> int:
         print(f"ERROR: Test directory not found: {test_dir}", file=sys.stderr)
         return 1
 
-    return run_pytest([test_dir], repo_root)
+    return run_pytest(sorted(test_dir.glob("test_*.py")))
 
 
 if __name__ == "__main__":
