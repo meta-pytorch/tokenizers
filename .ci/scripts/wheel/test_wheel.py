@@ -16,13 +16,15 @@ to ensure the wheel exposes the expected bindings and core functionality.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Sequence
 
 
-def run_pytest(test_files: Sequence[Path], repo_root: Path) -> int:
+def run_pytest(test_files: Sequence[Path], cwd: Path) -> int:
     """Execute pytest on the provided files and propagate the return code."""
     cmd = [
         sys.executable,
@@ -32,15 +34,11 @@ def run_pytest(test_files: Sequence[Path], repo_root: Path) -> int:
         *(str(test) for test in test_files),
     ]
 
+    print(f"Running pytest from: {cwd}")
     print(f"Running pytest with: {' '.join(cmd)}")
-    # Use repo_root as cwd so that relative paths to test resources
-    # (e.g. "test/resources/...") resolve correctly.
-    # Strip PYTHONPATH to prevent the repo's source tree from shadowing
-    # the installed wheel. Python won't auto-add cwd to sys.path when
-    # running via "python -m pytest".
     env = os.environ.copy()
     env.pop("PYTHONPATH", None)
-    result = subprocess.run(cmd, cwd=str(repo_root), env=env, check=False)
+    result = subprocess.run(cmd, cwd=str(cwd), env=env, check=False)
     return result.returncode
 
 
@@ -71,7 +69,16 @@ def main() -> int:
         print(f"ERROR: Test directory not found: {test_dir}", file=sys.stderr)
         return 1
 
-    return run_pytest(sorted(test_dir.glob("test_*.py")), repo_root)
+    # Run from a temp directory to avoid importing the source tree's
+    # pytorch_tokenizers/ package instead of the installed wheel.
+    # Copy the test/ directory (including resources/) so that relative
+    # paths like "test/resources/..." resolve correctly.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        shutil.copytree(test_dir, tmp_path / "test")
+
+        test_files = sorted((tmp_path / "test").glob("test_*.py"))
+        return run_pytest(test_files, tmp_path)
 
 
 if __name__ == "__main__":
