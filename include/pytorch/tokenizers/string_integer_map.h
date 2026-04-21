@@ -439,6 +439,30 @@ Error StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::init(
   }
 
   //
+  // Build string hash index immediately after layout so
+  // builder_string_elements can be released before integer processing.
+  //
+
+  {
+    auto iter = std::begin(builder_string_elements);
+    for (std::size_t bucket_idx = 0; bucket_idx < bucket_count_; ++bucket_idx) {
+      auto* string_bucket = string_bucket_data_.data() +
+          (bucket_idx * element_offset_.getByteCount());
+      if (iter != std::end(builder_string_elements)) {
+        element_offset_.write(string_bucket, iter->element_offset);
+      } else {
+        element_offset_.write(string_bucket, string_element_data_size);
+      }
+      while (iter != std::end(builder_string_elements) &&
+             getBucketIndex(iter->string) == bucket_idx) {
+        ++iter;
+      }
+    }
+  }
+
+  std::vector<BuilderElement>().swap(builder_string_elements);
+
+  //
   // Lay out the integer elements.
   //
 
@@ -461,53 +485,26 @@ Error StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::init(
             integer_element_data_.data() + integer_element_data_size);
   }
 
+  std::vector<std::size_t>().swap(string_offsets_by_index);
+
   //
-  // Both the string elements and integer elements are laid out in order of
-  // their respective hashes. Generate the hash indexes for the string elements
-  // and integer elements.
+  // Build integer hash index.
   //
 
-  auto builder_string_elements_iter = std::begin(builder_string_elements);
-  auto builder_integer_elements_iter = std::begin(builder_integer_elements);
-
-  for (std::size_t bucket_idx = 0; bucket_idx < bucket_count_; ++bucket_idx) {
-    auto* string_bucket = string_bucket_data_.data() +
-        (bucket_idx * element_offset_.getByteCount());
-    if (builder_string_elements_iter != std::end(builder_string_elements)) {
-      element_offset_.write(
-          string_bucket, builder_string_elements_iter->element_offset);
-    } else {
-      element_offset_.write(string_bucket, string_element_data_size);
-    }
-
-    auto* integer_bucket = integer_bucket_data_.data() +
-        (bucket_idx * element_offset_.getByteCount());
-    if (builder_integer_elements_iter != std::end(builder_integer_elements)) {
-      element_offset_.write(
-          integer_bucket, builder_integer_elements_iter->element_offset);
-    } else {
-      element_offset_.write(integer_bucket, integer_element_data_size);
-    }
-
-    //
-    // Advance the string element iterator past all string elements that map
-    // into this bucket.
-    //
-
-    while (builder_string_elements_iter != std::end(builder_string_elements) &&
-           getBucketIndex(builder_string_elements_iter->string) == bucket_idx) {
-      ++builder_string_elements_iter;
-    }
-
-    //
-    // Advance the integer element index past all integer elements that map into
-    // this bucket.
-    //
-
-    while (
-        builder_integer_elements_iter != std::end(builder_integer_elements) &&
-        getBucketIndex(builder_integer_elements_iter->integer) == bucket_idx) {
-      ++builder_integer_elements_iter;
+  {
+    auto iter = std::begin(builder_integer_elements);
+    for (std::size_t bucket_idx = 0; bucket_idx < bucket_count_; ++bucket_idx) {
+      auto* integer_bucket = integer_bucket_data_.data() +
+          (bucket_idx * element_offset_.getByteCount());
+      if (iter != std::end(builder_integer_elements)) {
+        element_offset_.write(integer_bucket, iter->element_offset);
+      } else {
+        element_offset_.write(integer_bucket, integer_element_data_size);
+      }
+      while (iter != std::end(builder_integer_elements) &&
+             getBucketIndex(iter->integer) == bucket_idx) {
+        ++iter;
+      }
     }
   }
 

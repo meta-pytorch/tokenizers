@@ -95,7 +95,7 @@ static Result<TokenMap> _load_token_map(const std::string& path) {
     pairs.emplace_back(std::move(token), rank);
   }
 
-  return build_token_map(pairs);
+  return build_token_map(std::move(pairs));
 }
 
 } // namespace
