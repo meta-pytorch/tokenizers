@@ -48,7 +48,6 @@ class Pcre2Regex : public IRegex {
 
  private:
   pcre2_code* regex_;
-  pcre2_match_data* match_data_;
 };
 
 } // namespace tokenizers

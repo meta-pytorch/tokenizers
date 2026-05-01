@@ -126,3 +126,18 @@ def define_common_targets():
         },
         platforms = [CXX, ANDROID],  # Cannot bundle resources on Apple platform.
     )
+
+    runtime.cxx_test(
+        name = "test_concurrent_encode",
+        srcs = [
+            "test_concurrent_encode.cpp",
+        ],
+        deps = [
+            "//pytorch/tokenizers:hf_tokenizer",
+            "//pytorch/tokenizers:regex_lookahead",
+        ],
+        env = {
+            "RESOURCES_PATH": "$(location :resources)/resources",
+        },
+        platforms = [CXX, ANDROID],  # Cannot bundle resources on Apple platform.
+    )
