@@ -75,22 +75,10 @@ Error Pcre2Regex::compile(const std::string& pattern) {
     }
   }
 
-  // Create match data
-  match_data_ = pcre2_match_data_create_from_pattern(regex_, nullptr);
-  if (match_data_ == nullptr) {
-    pcre2_code_free(regex_);
-    regex_ = nullptr;
-    TK_LOG(Error, "Failed to create PCRE2 match data");
-    return Error::RegexFailure;
-  }
-
   return Error::Ok;
 }
 
 Pcre2Regex::~Pcre2Regex() {
-  if (match_data_) {
-    pcre2_match_data_free(match_data_);
-  }
   if (regex_) {
     pcre2_code_free(regex_);
   }
@@ -99,8 +87,19 @@ Pcre2Regex::~Pcre2Regex() {
 std::vector<Match> Pcre2Regex::find_all(const std::string& text) const {
   std::vector<Match> result;
 
-  if (!regex_ || !match_data_) {
+  if (!regex_) {
     TK_LOG(Error, "Regex is not compiled or invalid, run compile() first");
+    return result;
+  }
+
+  // Allocate match_data per call rather than sharing it across calls.
+  // PCRE2 writes match offsets into match_data during pcre2_match(), so a
+  // shared buffer races under concurrent find_all() invocations: it silently
+  // corrupts results and can trigger heap-buffer-overflow inside PCRE2.
+  pcre2_match_data* match_data =
+      pcre2_match_data_create_from_pattern(regex_, nullptr);
+  if (match_data == nullptr) {
+    TK_LOG(Error, "Failed to create PCRE2 match data");
     return result;
   }
 
@@ -116,7 +115,7 @@ std::vector<Match> Pcre2Regex::find_all(const std::string& text) const {
         subject_length,
         offset,
         0, // Default options
-        match_data_,
+        match_data,
         nullptr);
 
     if (rc < 0) {
@@ -131,7 +130,7 @@ std::vector<Match> Pcre2Regex::find_all(const std::string& text) const {
       }
     }
 
-    ovector = pcre2_get_ovector_pointer(match_data_);
+    ovector = pcre2_get_ovector_pointer(match_data);
 
     // Add the match to the result
     result.push_back({ovector[0], ovector[1]});
@@ -146,6 +145,7 @@ std::vector<Match> Pcre2Regex::find_all(const std::string& text) const {
     }
   }
 
+  pcre2_match_data_free(match_data);
   return result;
 }
 
