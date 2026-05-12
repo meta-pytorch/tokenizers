@@ -10,9 +10,6 @@
 #include <pytorch/tokenizers/log.h>
 #include <pytorch/tokenizers/post_processor.h>
 
-#include <algorithm>
-#include <iostream>
-#include <numeric>
 #include <stdexcept>
 
 using json = nlohmann::json;
@@ -42,12 +39,14 @@ Piece parse_piece(const json& j) {
   if (j.is_string()) {
     std::string s = j.get<std::string>();
     // Check for $A, $B, $0, etc.
-    if (s.rfind("$", 0) == 0) {
+    if (s.rfind('$', 0) == 0) {
       std::string rest = s.substr(1);
-      if (rest == "" || rest == "A" || rest == "a")
+      if (rest == "" || rest == "A" || rest == "a") {
         return Piece::Sequence(SequenceId::A, 0);
-      if (rest == "B" || rest == "b")
+      }
+      if (rest == "B" || rest == "b") {
         return Piece::Sequence(SequenceId::B, 0);
+      }
       // Try parse number
       try {
         uint64_t type_id = std::stoul(rest);
@@ -103,12 +102,14 @@ Template parse_template(const json& j) {
     std::string token;
     while ((pos = s.find(delimiter)) != std::string::npos) {
       token = s.substr(0, pos);
-      if (!token.empty())
+      if (!token.empty()) {
         t.push_back(parse_piece(token));
+      }
       s.erase(0, pos + delimiter.length());
     }
-    if (!s.empty())
+    if (!s.empty()) {
       t.push_back(parse_piece(s));
+    }
   }
   return t;
 }
@@ -120,10 +121,12 @@ std::map<std::string, SpecialToken> parse_special_tokens(const json& j) {
     auto val = it.value();
     SpecialToken st;
     st.id = val.value("id", key);
-    if (val.contains("ids"))
+    if (val.contains("ids")) {
       st.ids = val["ids"].get<std::vector<uint64_t>>();
-    if (val.contains("tokens"))
+    }
+    if (val.contains("tokens")) {
       st.tokens = val["tokens"].get<std::vector<std::string>>();
+    }
     map[key] = st;
   }
   return map;
