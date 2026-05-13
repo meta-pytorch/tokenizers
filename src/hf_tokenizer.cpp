@@ -40,8 +40,8 @@ std::string extract_token_string(const json& token_json) {
 
 Error HFTokenizer::load(const std::string& path) {
   std::string model_json = path;
-  std::string model_config_json = "";
-  std::string special_tokens_map_json = "";
+  std::string model_config_json;
+  std::string special_tokens_map_json;
 
   if (fs::is_directory(path)) {
     const fs::path root(path);
