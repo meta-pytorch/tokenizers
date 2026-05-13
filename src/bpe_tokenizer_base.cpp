@@ -159,29 +159,66 @@ BPETokenizerBase::encode_with_special_token_(
     const TokenMap& allowed_special) const {
   std::vector<uint64_t> tokens;
   uint64_t last_piece_token_len = 0;
-  size_t offset = 0;
 
-  while (offset < text.size()) {
-    auto [special, sub_input] =
-        split_with_allowed_special_token_(text, offset, allowed_special);
+  // The original implementation guarded the entire encode loop with
+  // `while (offset < text.size())`, so empty input never reached _encode.
+  // Preserve that: skip _encode entirely for empty text.
+  if (text.empty()) {
+    return std::make_pair(tokens, last_piece_token_len);
+  }
 
-    TK_CHECK_OK_OR_RETURN_ERROR(
-        _encode(sub_input, tokens, last_piece_token_len));
-    offset += sub_input.size();
-
-    if (special) {
-      const auto result = special_token_map_->tryGetInteger(*special);
-      if (!result) {
-        TK_LOG(Error, "unknown special token: %s\n", special->c_str());
-        return Error::EncodeFailure;
+  // Fast path: scan the input ONCE for every special-token match, then walk
+  // the precomputed match list in order. The previous implementation called
+  // find_all on a fresh substring per outer iteration but used only the
+  // first match per call, giving O(N_special * text_len) regex work and
+  // O(N_special) std::string copies on prompts with many specials.
+  //
+  // Semantics preserved: matches whose text is not in `allowed_special` are
+  // skipped (treated as part of the surrounding text piece), matching the
+  // behavior of split_with_allowed_special_token_.
+  if (special_token_regex_) {
+    const auto all_matches = special_token_regex_->find_all(text);
+    size_t offset = 0;
+    for (const auto& m : all_matches) {
+      // A skipped (disallowed) special earlier may have left `offset`
+      // beyond this match — drop matches that overlap already-consumed
+      // text.
+      if (m.start < offset) {
+        continue;
       }
-
-      tokens.push_back(*result);
+      // Filter by allowed_special: the special-token regex matches every
+      // registered special, but the caller may have restricted which ones
+      // are actually special-tokenized. Disallowed matches fall through
+      // and are handled as ordinary text by _encode below.
+      std::string_view matched_text(text.data() + m.start, m.end - m.start);
+      const auto sid = allowed_special.tryGetInteger(matched_text);
+      if (!sid.has_value()) {
+        continue;
+      }
+      // Encode the regular-text piece [offset .. m.start) before the
+      // special token. The piece may be empty (special at offset 0 or two
+      // specials adjacent); the original loop called _encode unconditionally
+      // in this position and HFTokenizer's normalizer/pretokenizer pipeline
+      // can have observable effects on "", so preserve that call here.
+      std::string piece(text.data() + offset, m.start - offset);
+      TK_CHECK_OK_OR_RETURN_ERROR(_encode(piece, tokens, last_piece_token_len));
+      tokens.push_back(*sid);
       last_piece_token_len = 0;
-      offset += special->size(); // advance past the matched token
-    } else {
-      break;
+      offset = m.end;
     }
+    // Encode the trailing piece [offset .. text.size()) only if non-empty.
+    // The original loop exited via `break` (no trailing _encode) when the
+    // input ended exactly on a special token, so don't synthesize one here.
+    if (offset < text.size()) {
+      std::string tail(text.data() + offset, text.size() - offset);
+      TK_CHECK_OK_OR_RETURN_ERROR(_encode(tail, tokens, last_piece_token_len));
+    }
+  } else {
+    // No special-token regex configured: fall back to encoding the whole
+    // text as a single piece, matching the original loop's behavior when
+    // split_with_allowed_special_token_ returns {nullopt, full input}.
+    // Empty-text early-return above ensures we never call _encode("") here.
+    TK_CHECK_OK_OR_RETURN_ERROR(_encode(text, tokens, last_piece_token_len));
   }
 
   return std::make_pair(tokens, last_piece_token_len);
