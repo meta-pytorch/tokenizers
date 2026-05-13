@@ -9,7 +9,6 @@
 #include <gtest/gtest.h>
 
 #include "pytorch/tokenizers/pcre2_regex.h"
-#include "pytorch/tokenizers/re2_regex.h"
 #include "pytorch/tokenizers/regex.h"
 
 using namespace tokenizers;
