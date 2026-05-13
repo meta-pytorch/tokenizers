@@ -10,7 +10,6 @@
 #include <pytorch/tokenizers/hf_tokenizer.h>
 
 // Standard
-#include <algorithm>
 #include <cinttypes>
 #include <filesystem>
 #include <fstream>
@@ -267,16 +266,18 @@ std::vector<uint64_t> HFTokenizer::_byte_pair_merge(
     size_t char_start = i;
     size_t char_len = 1;
     unsigned char byte = static_cast<unsigned char>(piece[i]);
-    if ((byte & 0x80) == 0)
+    if ((byte & 0x80) == 0) {
       char_len = 1;
-    else if ((byte & 0xE0) == 0xC0)
+    } else if ((byte & 0xE0) == 0xC0) {
       char_len = 2;
-    else if ((byte & 0xF0) == 0xE0)
+    } else if ((byte & 0xF0) == 0xE0) {
       char_len = 3;
-    else if ((byte & 0xF8) == 0xF0)
+    } else if ((byte & 0xF8) == 0xF0) {
       char_len = 4;
-    if (char_start + char_len > piece.size())
+    }
+    if (char_start + char_len > piece.size()) {
       char_len = piece.size() - char_start;
+    }
 
     uint64_t token_id = func(char_start, char_start + char_len);
     if (token_id == UINT64_MAX) { // This is the sentinel for byte_fallback
@@ -429,8 +430,9 @@ Error HFTokenizer::parse_merges(const json& parsed_json) {
       std::string first, second;
       if (merge.is_string()) {
         std::string merge_str = merge.get<std::string>();
-        if (merge_str.rfind("#version", 0) == 0)
+        if (merge_str.rfind("#version", 0) == 0) {
           continue;
+        }
         auto space_pos = merge_str.find(' ');
         if (space_pos != std::string::npos) {
           first = merge_str.substr(0, space_pos);
@@ -500,17 +502,21 @@ Error HFTokenizer::setup_special_token_ids(
   }
 
   auto process_config_file = [&](const std::string& file_path) {
-    if (file_path.empty())
+    if (file_path.empty()) {
       return;
+    }
     std::ifstream f(file_path);
-    if (!f)
+    if (!f) {
       return;
+    }
     try {
       json j = json::parse(f);
-      if (j.contains("bos_token"))
+      if (j.contains("bos_token")) {
         config_bos_token = extract_token_string(j["bos_token"]);
-      if (j.contains("eos_token"))
+      }
+      if (j.contains("eos_token")) {
         config_eos_token = extract_token_string(j["eos_token"]);
+      }
       if (config_unk_token.empty() && !explicit_unk_null &&
           j.contains("unk_token")) {
         if (j["unk_token"].is_null()) {
