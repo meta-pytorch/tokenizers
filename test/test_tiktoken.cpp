@@ -261,4 +261,17 @@ TEST_F(TiktokenTest, LoadTiktokenFileWithBPEFile) {
 
   EXPECT_EQ(res, Error::ParseFailure);
 }
+
+TEST_F(TiktokenTest, EncodeEmptyStringDoesNotCrash) {
+  // Issue #3: Empty input to BPE must not cause unsigned underflow
+  Error res = tokenizer_->load(modelPath_.c_str());
+  EXPECT_EQ(res, Error::Ok);
+  // Empty string encode should return error or empty result, not crash
+  Result<std::vector<uint64_t>> out = tokenizer_->encode("", 0, 0);
+  // Either returns empty tokens or an error — both are acceptable
+  if (out.ok()) {
+    EXPECT_TRUE(out.get().empty());
+  }
+}
+
 } // namespace tokenizers

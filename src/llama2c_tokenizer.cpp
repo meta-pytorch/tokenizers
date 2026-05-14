@@ -8,8 +8,13 @@
 // @lint-ignore-every CLANGTIDY facebook-hte-RelativeInclude
 #include <pytorch/tokenizers/llama2c_tokenizer.h>
 #include <cstring>
+#include <memory>
 
 namespace tokenizers {
+
+// Upper bounds for untrusted file fields to prevent excessive allocation
+static constexpr int32_t kMaxSupportedVocabSize = 10000000; // 10M tokens
+static constexpr int32_t kMaxTokenLengthBytes = 1048576; // 1 MiB
 
 static int compare_tokens(const void* a, const void* b) {
   if (((TokenIndex*)a)->str == nullptr) {
@@ -44,14 +49,15 @@ Error Llama2cTokenizer::load(const std::string& tokenizer_path) {
     return Error::Ok;
   }
   // read in the file
-  FILE* file = fopen(tokenizer_path.c_str(), "rb");
+  std::unique_ptr<FILE, decltype(&fclose)> file(
+      fopen(tokenizer_path.c_str(), "rb"), &fclose);
   if (!file) {
     TK_LOG(Error, "couldn't load %s", tokenizer_path.c_str());
     return Error::LoadFailure;
   }
   int32_t metadata[4];
   for (int i = 0; i < 4; i++) {
-    if (fread(metadata + i, sizeof(int32_t), 1, file) != 1) {
+    if (fread(metadata + i, sizeof(int32_t), 1, file.get()) != 1) {
       TK_LOG(
           Error,
           "Failed to read the metadata at position %d, the tokenizer file is not valid!",
@@ -60,9 +66,23 @@ Error Llama2cTokenizer::load(const std::string& tokenizer_path) {
     }
   }
 
-  // now we have two vocab_sizes one from the model and another from the
-  // tokenizer file.
+  // Validate all metadata before mutating member state, so a failed
+  // retry of load() cannot leave vocab_size_ inconsistent with vocab_.
   int32_t tokenizer_vocab_size = metadata[0];
+  if (tokenizer_vocab_size <= 0 ||
+      tokenizer_vocab_size > kMaxSupportedVocabSize) {
+    TK_LOG(
+        Error,
+        "Invalid vocab_size %d in tokenizer file (must be 1..%d)",
+        tokenizer_vocab_size,
+        kMaxSupportedVocabSize);
+    return Error::ParseFailure;
+  }
+  if (metadata[3] <= 0 || metadata[3] > kMaxTokenLengthBytes) {
+    TK_LOG(Error, "Invalid max_token_length %d in tokenizer file", metadata[3]);
+    return Error::ParseFailure;
+  }
+
   vocab_size_ = tokenizer_vocab_size;
   bos_tok_ = metadata[1];
   eos_tok_ = metadata[2];
@@ -76,7 +96,7 @@ Error Llama2cTokenizer::load(const std::string& tokenizer_path) {
 
   // read in the vocabulary
   for (int i = 0; i < vocab_size_; i++) {
-    if (fread(vocab_scores_.get() + i, sizeof(float), 1, file) != 1) {
+    if (fread(vocab_scores_.get() + i, sizeof(float), 1, file.get()) != 1) {
       // This is allowed, we just pad the rest of the vocab with <pad> strings
       std::string padding = "<pad>";
       vocab_[i] = new char[padding.length() + 1];
@@ -85,12 +105,21 @@ Error Llama2cTokenizer::load(const std::string& tokenizer_path) {
       continue;
     }
     int32_t len;
-    if (fread(&len, sizeof(int32_t), 1, file) != 1) {
+    if (fread(&len, sizeof(int32_t), 1, file.get()) != 1) {
       TK_LOG(Error, "Failed to read the length of the word at index %d", i);
       return Error::ParseFailure;
     }
+    if (len < 0 || len > kMaxTokenLengthBytes) {
+      TK_LOG(
+          Error,
+          "Invalid token length %d at index %d (max: %d)",
+          len,
+          i,
+          kMaxTokenLengthBytes);
+      return Error::ParseFailure;
+    }
     vocab_[i] = new char[len + 1];
-    if (fread(vocab_[i], len, 1, file) != 1) {
+    if (len > 0 && fread(vocab_[i], len, 1, file.get()) != 1) {
       TK_LOG(
           Error,
           "Failed to read the word, total length %d, index %d\n",
@@ -98,9 +127,9 @@ Error Llama2cTokenizer::load(const std::string& tokenizer_path) {
           i);
       return Error::ParseFailure;
     }
-    vocab_[i][len] = '\0'; // add the string terminating token
+    vocab_[i][len] = '\0';
+    max_token_length_ = std::max(max_token_length_, static_cast<uint32_t>(len));
   }
-  fclose(file);
 
   for (int32_t i = 0; i < vocab_size_; i++) {
     sorted_vocab_[i].str = vocab_[i];
@@ -113,8 +142,10 @@ Error Llama2cTokenizer::load(const std::string& tokenizer_path) {
 }
 
 Llama2cTokenizer::~Llama2cTokenizer() {
-  for (int i = 0; i < vocab_size_; i++) {
-    delete[] vocab_[i];
+  if (vocab_) {
+    for (int i = 0; i < vocab_size_; i++) {
+      delete[] vocab_[i];
+    }
   }
 }
 
