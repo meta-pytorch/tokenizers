@@ -33,6 +33,10 @@ std::vector<uint64_t> BPETokenizerBase::_byte_pair_merge(
     const std::string& piece,
     const TokenMap& ranks,
     std::function<uint64_t(uint64_t, uint64_t)> func) const {
+  if (piece.empty()) {
+    return {};
+  }
+
   // This is a vector of (start, rank).
   // The rank is of the byte pair starting at position start.
   // The rank of the last item in the vector is not a valid value.
@@ -57,12 +61,15 @@ std::vector<uint64_t> BPETokenizerBase::_byte_pair_merge(
 
   // We look up the ranks once in the beginning and iteratively update
   // them during each merge, which reduces the number of rank lookups.
-  for (auto i = 0U; i < parts.size() - 2; ++i) {
+  for (size_t i = 0; i + 2 < parts.size(); ++i) {
     auto rank = get_rank(parts, i, 0);
     if (rank) {
       // usize::MAX is a sentinel value and cannot be a valid rank
       if (*rank == _max_size()) {
-        TK_LOG(Error, "at %" PRIu32 " rank is too large\n", i);
+        TK_LOG(
+            Error,
+            "at %" PRIu32 " rank is too large\n",
+            static_cast<uint32_t>(i));
       }
       parts[i].second = *rank;
     }
