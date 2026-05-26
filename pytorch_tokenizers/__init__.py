@@ -18,7 +18,7 @@ from .hf_tokenizer import HuggingFaceTokenizer
 from .llama2c import Llama2cTokenizer
 from .tiktoken import TiktokenTokenizer
 
-__version__ = "0.1.0"
+__version__ = "1.3.0"
 
 try:
     from .pytorch_tokenizers_cpp import (  # @manual=//pytorch/tokenizers:pytorch_tokenizers_cpp
