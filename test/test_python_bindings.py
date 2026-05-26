@@ -91,7 +91,7 @@ class TestPythonBindings(unittest.TestCase):
     def test_version(self):
         """Test that version is available"""
         self.assertTrue(hasattr(pytorch_tokenizers, "__version__"))
-        self.assertEqual(pytorch_tokenizers.__version__, "0.1.0")
+        self.assertEqual(pytorch_tokenizers.__version__, "1.3.0")
 
     def test_hf_tokenizer_encode_decode(self):
         """Test HFTokenizer with test_hf_tokenizer.json to encode/decode 'Hello world!'"""
