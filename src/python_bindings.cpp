@@ -13,10 +13,10 @@
 #include <pybind11/stl.h>
 
 #include <pytorch/tokenizers/error.h>
+#include <pytorch/tokenizers/sentencepiece.h>
 #include <pytorch/tokenizers/hf_tokenizer.h>
 #include <pytorch/tokenizers/llama2c_tokenizer.h>
 #include <pytorch/tokenizers/result.h>
-#include <pytorch/tokenizers/sentencepiece.h>
 #include <pytorch/tokenizers/tekken.h>
 #include <pytorch/tokenizers/tiktoken.h>
 #include <pytorch/tokenizers/tokenizer.h>

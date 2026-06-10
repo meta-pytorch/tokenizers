@@ -5,6 +5,8 @@
 #endif
 #include <gtest/gtest.h>
 #include <pytorch/tokenizers/llama2c_tokenizer.h>
+#include <fstream>
+#include <iterator>
 
 using namespace ::testing;
 
@@ -149,6 +151,30 @@ TEST_F(Llama2cTokenizerTest, TokenizerMetadataIsExpected) {
   EXPECT_EQ(tokenizer_->vocab_size(), 4);
   EXPECT_EQ(tokenizer_->bos_tok(), 1);
   EXPECT_EQ(tokenizer_->eos_tok(), 2);
+}
+
+TEST_F(Llama2cTokenizerTest, LoadFromBufferMatchesFileLoader) {
+  std::ifstream file(modelPath_, std::ios::binary);
+  ASSERT_TRUE(file);
+  std::vector<char> buffer(
+      std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+  ASSERT_FALSE(buffer.empty());
+
+  auto file_tokenizer = std::make_unique<Llama2cTokenizer>();
+  EXPECT_EQ(file_tokenizer->load(modelPath_), Error::Ok);
+
+  auto buffer_tokenizer = std::make_unique<Llama2cTokenizer>();
+  EXPECT_EQ(
+      buffer_tokenizer->load_from_buffer(buffer.data(), buffer.size()),
+      Error::Ok);
+
+  EXPECT_EQ(buffer_tokenizer->vocab_size(), file_tokenizer->vocab_size());
+  EXPECT_EQ(buffer_tokenizer->bos_tok(), file_tokenizer->bos_tok());
+  EXPECT_EQ(buffer_tokenizer->eos_tok(), file_tokenizer->eos_tok());
+
+  auto bos = buffer_tokenizer->piece_to_id("<s>");
+  EXPECT_EQ(bos.error(), Error::Ok);
+  EXPECT_EQ(bos.get(), 1);
 }
 
 TEST_F(Llama2cTokenizerTest, SafeToDestruct) {

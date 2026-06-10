@@ -31,6 +31,7 @@
 #include <cinttypes>
 #include <fstream>
 #include <limits>
+#include <sstream>
 #include <unordered_set>
 
 namespace tokenizers {
@@ -74,11 +75,7 @@ static Result<std::pair<std::string, uint64_t>> _parse(
   return std::pair{std::move(token), rank};
 }
 
-static Result<TokenMap> _load_token_map(const std::string& path) {
-  std::ifstream file(path);
-  TK_CHECK_OR_RETURN_ERROR(
-      file, LoadFailure, "failed to open encoder file: %s", path.c_str());
-
+static Result<TokenMap> _load_token_map_from_stream(std::istream& file) {
   // Instead of generating couple of large unordered_maps here to only process
   // them linearly in the TokenMap, just place them in a vector of pairs and
   // sort them twice, looking for duplicates.  It's still O(n log n) but avoids
@@ -96,6 +93,23 @@ static Result<TokenMap> _load_token_map(const std::string& path) {
   }
 
   return build_token_map(pairs);
+}
+
+static Result<TokenMap> _load_token_map(const std::string& path) {
+  std::ifstream file(path);
+  TK_CHECK_OR_RETURN_ERROR(
+      file, LoadFailure, "failed to open encoder file: %s", path.c_str());
+  return _load_token_map_from_stream(file);
+}
+
+static Result<TokenMap> _load_token_map_from_buffer(
+    const void* data,
+    size_t size) {
+  TK_CHECK_OR_RETURN_ERROR(
+      data != nullptr || size == 0, LoadFailure, "tokenizer buffer is null");
+  std::string contents(static_cast<const char*>(data), size);
+  std::istringstream stream(contents);
+  return _load_token_map_from_stream(stream);
 }
 
 } // namespace
@@ -136,13 +150,8 @@ void Tiktoken::_decode(const std::string& input, std::string& ret) const {
 // -------------------------private method end-------------------------------
 // -------------------------public method start-------------------------------
 
-Error Tiktoken::load(const std::string& path) {
-  auto token_map_result = _load_token_map(path);
-  if (!token_map_result.ok()) {
-    return token_map_result.error();
-  }
-  token_map_.emplace(std::move(*token_map_result));
-
+Error Tiktoken::_load_from_token_map(detail::TokenMap token_map) {
+  token_map_.emplace(std::move(token_map));
   std::vector<std::pair<std::string, uint64_t>> special_token_map;
   for (std::size_t i = 0; i < _special_tokens->size(); ++i) {
     special_token_map.emplace_back(
@@ -178,6 +187,22 @@ Error Tiktoken::load(const std::string& path) {
 
   initialized_ = true;
   return Error::Ok;
+}
+
+Error Tiktoken::load(const std::string& path) {
+  auto token_map_result = _load_token_map(path);
+  if (!token_map_result.ok()) {
+    return token_map_result.error();
+  }
+  return _load_from_token_map(std::move(*token_map_result));
+}
+
+Error Tiktoken::load_from_buffer(const void* data, size_t size) {
+  auto token_map_result = _load_token_map_from_buffer(data, size);
+  if (!token_map_result.ok()) {
+    return token_map_result.error();
+  }
+  return _load_from_token_map(std::move(*token_map_result));
 }
 
 // -------------------------public method end-------------------------------

@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <pytorch/tokenizers/error.h>
 #include <pytorch/tokenizers/result.h>
 #include <string>
@@ -31,6 +32,12 @@ class Tokenizer {
   virtual ~Tokenizer() {}
 
   virtual Error load(const std::string& tokenizer_path) = 0;
+
+  virtual Error load_from_buffer(const void* data, size_t size) {
+    (void)data;
+    (void)size;
+    return Error::LoadFailure;
+  }
 
   /**
    * Returns the raw vocabulary piece for a given token id.

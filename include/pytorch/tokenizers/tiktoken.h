@@ -85,6 +85,7 @@ class Tiktoken : public detail::BPETokenizerBase {
         _eos_token_index(kEOSTokenIndex) {};
 
   Error load(const std::string& tokenizer_path) override;
+  Error load_from_buffer(const void* data, size_t size) override;
 
  private:
   static inline std::unique_ptr<std::vector<std::string>>
@@ -123,6 +124,8 @@ class Tiktoken : public detail::BPETokenizerBase {
       uint64_t& last_piece_token_len) const override;
 
   void _decode(const std::string& input, std::string& ret) const override;
+
+  Error _load_from_token_map(detail::TokenMap token_map);
 
   detail::TokenMap _build_special_token_map(ssize_t num_base_tokens) const;
 

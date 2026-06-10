@@ -7,6 +7,7 @@
  */
 // @lint-ignore-every CLANGTIDY facebook-hte-RelativeInclude
 #include <pytorch/tokenizers/llama2c_tokenizer.h>
+#include <cstdint>
 #include <cstring>
 
 namespace tokenizers {
@@ -101,6 +102,86 @@ Error Llama2cTokenizer::load(const std::string& tokenizer_path) {
     vocab_[i][len] = '\0'; // add the string terminating token
   }
   fclose(file);
+
+  for (int32_t i = 0; i < vocab_size_; i++) {
+    sorted_vocab_[i].str = vocab_[i];
+    sorted_vocab_[i].id = i;
+  }
+  qsort(sorted_vocab_.get(), vocab_size_, sizeof(TokenIndex), compare_tokens);
+
+  initialized_ = true;
+  return Error::Ok;
+}
+
+Error Llama2cTokenizer::load_from_buffer(const void* data, size_t size) {
+  if (initialized_) {
+    TK_LOG(Info, "Tokenizer already initialized");
+    return Error::Ok;
+  }
+  if (data == nullptr) {
+    return Error::LoadFailure;
+  }
+
+  const auto* cursor = static_cast<const uint8_t*>(data);
+  const auto* const end = cursor + size;
+
+  auto read_bytes = [&](void* dst, size_t nbytes) -> bool {
+    if (static_cast<size_t>(end - cursor) < nbytes) {
+      return false;
+    }
+    memcpy(dst, cursor, nbytes);
+    cursor += nbytes;
+    return true;
+  };
+
+  int32_t metadata[4];
+  for (int i = 0; i < 4; i++) {
+    if (!read_bytes(metadata + i, sizeof(int32_t))) {
+      TK_LOG(
+          Error,
+          "Failed to read tokenizer metadata at position %d from buffer",
+          i);
+      return Error::ParseFailure;
+    }
+  }
+
+  if (metadata[0] <= 0 || metadata[3] <= 0) {
+    TK_LOG(Error, "Invalid tokenizer metadata in buffer");
+    return Error::ParseFailure;
+  }
+  vocab_size_ = metadata[0];
+  bos_tok_ = metadata[1];
+  eos_tok_ = metadata[2];
+  unk_tok_ = 0;
+  max_token_length_ = metadata[3];
+
+  vocab_ = std::make_unique<char*[]>(vocab_size_);
+  vocab_scores_ = std::make_unique<float[]>(vocab_size_);
+  sorted_vocab_ = std::make_unique<TokenIndex[]>(vocab_size_);
+
+  for (int i = 0; i < vocab_size_; i++) {
+    if (!read_bytes(vocab_scores_.get() + i, sizeof(float))) {
+      std::string padding = "<pad>";
+      vocab_[i] = new char[padding.length() + 1];
+      strcpy(vocab_[i], padding.c_str());
+      vocab_[i][padding.length()] = '\0';
+      continue;
+    }
+    int32_t len;
+    if (!read_bytes(&len, sizeof(int32_t))) {
+      TK_LOG(Error, "Failed to read the length of the word at index %d", i);
+      return Error::ParseFailure;
+    }
+    if (len < 0 ||
+        static_cast<size_t>(end - cursor) < static_cast<size_t>(len)) {
+      TK_LOG(Error, "Invalid word length %d at index %d", len, i);
+      return Error::ParseFailure;
+    }
+    vocab_[i] = new char[len + 1];
+    memcpy(vocab_[i], cursor, len);
+    cursor += len;
+    vocab_[i][len] = '\0';
+  }
 
   for (int32_t i = 0; i < vocab_size_; i++) {
     sorted_vocab_[i].str = vocab_[i];

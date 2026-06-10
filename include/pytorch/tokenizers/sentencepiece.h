@@ -13,7 +13,11 @@
 #include <pytorch/tokenizers/tokenizer.h>
 #include <memory>
 #include <vector>
-#include "sentencepiece_processor.h"
+
+namespace sentencepiece {
+class SentencePieceProcessor;
+}
+
 namespace tokenizers {
 
 class SPTokenizer : public Tokenizer {
@@ -22,6 +26,7 @@ class SPTokenizer : public Tokenizer {
   ~SPTokenizer() override;
 
   Error load(const std::string& tokenizer_path) override;
+  Error load_from_buffer(const void* data, size_t size) override;
 
   Result<std::string> id_to_piece(uint64_t token) const override;
   Result<uint64_t> piece_to_id(const std::string& text) const override;

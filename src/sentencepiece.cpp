@@ -11,6 +11,7 @@
 #include <pytorch/tokenizers/sentencepiece.h>
 #include <cinttypes>
 #include <string>
+#include "sentencepiece_processor.h"
 #include "third_party/absl/strings/str_replace.h"
 namespace tokenizers {
 const char kSpaceSymbol[] = "\xe2\x96\x81";
@@ -51,6 +52,31 @@ Error SPTokenizer::load(const std::string& tokenizer_path) {
   bos_tok_ = _processor->bos_id();
   eos_tok_ = _processor->eos_id();
   unk_tok_ = _processor->unk_id(); // Explicitly set unk_tok_
+  initialized_ = true;
+  return Error::Ok;
+}
+
+Error SPTokenizer::load_from_buffer(const void* data, size_t size) {
+  if (initialized_) {
+    fprintf(stderr, "Tokenizer already initialized.\n");
+    return Error::Ok;
+  }
+  if (data == nullptr) {
+    return Error::LoadFailure;
+  }
+  const auto status = _processor->LoadFromSerializedProto(
+      absl::string_view(static_cast<const char*>(data), size));
+  if (!status.ok()) {
+    fprintf(
+        stderr,
+        "couldn't load sentencepiece tokenizer from buffer. \nError message: \n%s\n",
+        status.error_message());
+    return Error::LoadFailure;
+  }
+  vocab_size_ = _processor->GetPieceSize();
+  bos_tok_ = _processor->bos_id();
+  eos_tok_ = _processor->eos_id();
+  unk_tok_ = _processor->unk_id();
   initialized_ = true;
   return Error::Ok;
 }
