@@ -53,6 +53,7 @@ class Tekken : public detail::BPETokenizerBase {
 
   // Load from tekken.json file
   Error load(const std::string& tokenizer_path) override;
+  Error load_from_buffer(const void* data, size_t size) override;
 
   // Support loading with explicit special tokens
   Error load_with_special_tokens(
@@ -76,6 +77,7 @@ class Tekken : public detail::BPETokenizerBase {
  private:
   // Parse the JSON configuration
   Result<TekkenConfig> _parse_config(const nlohmann::json& j) const;
+  Error _load_from_json(const nlohmann::json& parsed_json);
 
   // Build token map from JSON vocab
   Result<detail::TokenMap> _load_vocab_from_json(

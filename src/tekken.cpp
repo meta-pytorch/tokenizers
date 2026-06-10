@@ -107,8 +107,35 @@ Error Tekken::load(const std::string& tokenizer_path) {
         false, ParseFailure, "Error parsing tekken JSON: %s", e.what());
   }
 
+  return _load_from_json(parsed_json);
+}
+
+Error Tekken::load_from_buffer(const void* data, size_t size) {
+  if (data == nullptr) {
+    return Error::LoadFailure;
+  }
+  const auto* const begin = static_cast<const char*>(data);
+  json parsed_json;
+  try {
+    parsed_json = json::parse(begin, begin + size);
+  } catch (const json::exception& e) {
+    TK_CHECK_OR_RETURN_ERROR(
+        false,
+        ParseFailure,
+        "Error parsing tekken JSON buffer: %s",
+        e.what());
+  }
+
+  return _load_from_json(parsed_json);
+}
+
+Error Tekken::_load_from_json(const json& parsed_json) {
+  if (!parsed_json.contains("config") || !parsed_json.contains("vocab")) {
+    return Error::LoadFailure;
+  }
+
   // Parse configuration
-  auto config_result = _parse_config(parsed_json["config"]);
+  auto config_result = _parse_config(parsed_json.at("config"));
   if (!config_result.ok()) {
     return config_result.error();
   }
@@ -147,7 +174,7 @@ Error Tekken::load(const std::string& tokenizer_path) {
   size_t vocab_size = config.default_vocab_size - _num_special_tokens;
   TK_LOG(Info, "Loading %zu vocabulary tokens", vocab_size);
   auto token_map_result =
-      _load_vocab_from_json(parsed_json["vocab"], vocab_size);
+      _load_vocab_from_json(parsed_json.at("vocab"), vocab_size);
   if (!token_map_result.ok()) {
     return token_map_result.error();
   }

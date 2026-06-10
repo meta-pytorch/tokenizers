@@ -11,6 +11,7 @@
 #include <pytorch/tokenizers/hf_tokenizer.h>
 
 #include <fstream>
+#include <iterator>
 
 namespace tokenizers {
 
@@ -70,6 +71,28 @@ TEST(HFTokenizerTest, TestLoad) {
   auto path = _get_resource_path("test_hf_tokenizer.json");
   auto error = tokenizer.load(path);
   EXPECT_EQ(error, Error::Ok);
+}
+
+TEST(HFTokenizerTest, LoadFromBufferMatchesFileLoader) {
+  auto path = _get_resource_path("test_hf_tokenizer.json");
+  std::ifstream file(path, std::ios::binary);
+  ASSERT_TRUE(file);
+  std::string buffer(
+      (std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+  HFTokenizer file_tokenizer;
+  EXPECT_EQ(file_tokenizer.load(path), Error::Ok);
+  HFTokenizer buffer_tokenizer;
+  EXPECT_EQ(
+      buffer_tokenizer.load_from_buffer(buffer.data(), buffer.size()),
+      Error::Ok);
+
+  const std::string text = "Hello world!";
+  auto file_tokens = file_tokenizer.encode(text, /*bos=*/0, /*eos=*/0);
+  auto buffer_tokens = buffer_tokenizer.encode(text, /*bos=*/0, /*eos=*/0);
+  ASSERT_TRUE(file_tokens.ok());
+  ASSERT_TRUE(buffer_tokens.ok());
+  EXPECT_EQ(buffer_tokens.get(), file_tokens.get());
 }
 
 TEST(HFTokenizerTest, TestLoadInvalidPath) {

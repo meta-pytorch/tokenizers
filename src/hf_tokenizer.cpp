@@ -76,6 +76,32 @@ Error HFTokenizer::load(const std::string& path) {
     return Error::LoadFailure;
   }
 
+  return load_from_json(parsed_json, model_config_json, special_tokens_map_json);
+}
+
+Error HFTokenizer::load_from_buffer(const void* data, size_t size) {
+  if (data == nullptr) {
+    return Error::LoadFailure;
+  }
+  const auto* const begin = static_cast<const char*>(data);
+  json parsed_json;
+  try {
+    parsed_json = json::parse(begin, begin + size);
+  } catch (const std::exception& e) {
+    TK_LOG(Error, "Error parsing json buffer: %s", e.what());
+    return Error::LoadFailure;
+  }
+
+  return load_from_json(
+      parsed_json,
+      /*model_config_json=*/"",
+      /*special_tokens_map_json=*/"");
+}
+
+Error HFTokenizer::load_from_json(
+    const json& parsed_json,
+    const std::string& model_config_json,
+    const std::string& special_tokens_map_json) {
   TK_CHECK_OK_OR_RETURN_ERROR(parse_special_tokens(parsed_json));
   TK_CHECK_OK_OR_RETURN_ERROR(parse_tokens(parsed_json));
 
@@ -89,7 +115,7 @@ Error HFTokenizer::load(const std::string& path) {
   TK_CHECK_OK_OR_RETURN_ERROR(parse_merges(parsed_json));
 
   TK_CHECK_OK_OR_RETURN_ERROR(setup_special_token_ids(
-      path, parsed_json, model_config_json, special_tokens_map_json));
+      "", parsed_json, model_config_json, special_tokens_map_json));
 
   initialized_ = true;
   return Error::Ok;

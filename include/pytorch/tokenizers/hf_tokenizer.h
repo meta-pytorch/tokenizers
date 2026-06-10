@@ -183,6 +183,7 @@ class HFTokenizer : public detail::BPETokenizerBase {
    * Load the model data into the
    */
   Error load(const std::string& tokenizer_path) override;
+  Error load_from_buffer(const void* data, size_t size) override;
 
   Result<std::vector<uint64_t>> encode(
       const std::string& input,
@@ -225,6 +226,10 @@ class HFTokenizer : public detail::BPETokenizerBase {
   Error setup_postprocessor(const nlohmann::json& parsed_json);
   Error setup_decoder(const nlohmann::json& parsed_json);
   Error parse_merges(const nlohmann::json& parsed_json);
+  Error load_from_json(
+      const nlohmann::json& parsed_json,
+      const std::string& model_config_json,
+      const std::string& special_tokens_map_json);
   Error setup_special_token_ids(
       const std::string& path,
       const nlohmann::json& parsed_json,

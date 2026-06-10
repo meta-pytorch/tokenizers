@@ -31,7 +31,9 @@ Here's the repro:
 
 #include <gtest/gtest.h>
 #include <pytorch/tokenizers/tekken.h>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <string>
 
 using namespace ::testing;
@@ -61,6 +63,27 @@ TEST_F(TekkenTest, TestLoadModel) {
   Error res = tokenizer_->load(modelPath_);
   EXPECT_EQ(res, Error::Ok);
   EXPECT_EQ(tokenizer_->vocab_size(), 131072); // Default Tekken vocab size
+}
+
+TEST_F(TekkenTest, LoadFromBufferMatchesFileLoader) {
+  std::ifstream file(modelPath_, std::ios::binary);
+  ASSERT_TRUE(file);
+  std::string buffer(
+      (std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+  Tekken file_tokenizer;
+  EXPECT_EQ(file_tokenizer.load(modelPath_), Error::Ok);
+  Tekken buffer_tokenizer;
+  EXPECT_EQ(
+      buffer_tokenizer.load_from_buffer(buffer.data(), buffer.size()),
+      Error::Ok);
+
+  const std::string text = "Hello world!";
+  auto file_tokens = file_tokenizer.encode(text, /*bos=*/0, /*eos=*/0);
+  auto buffer_tokens = buffer_tokenizer.encode(text, /*bos=*/0, /*eos=*/0);
+  ASSERT_TRUE(file_tokens.ok());
+  ASSERT_TRUE(buffer_tokens.ok());
+  EXPECT_EQ(buffer_tokens.get(), file_tokens.get());
 }
 
 TEST_F(TekkenTest, TestTokenizerProperties) {
