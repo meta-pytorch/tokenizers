@@ -39,6 +39,38 @@ TEST(NormalizerTest, ReplaceNormalizerMultipleMatches) {
   EXPECT_EQ(result, expected);
 }
 
+TEST(NormalizerTest, ReplaceNormalizerEmptyContent) {
+  // Empty replacement deletes every match.
+  ReplaceNormalizer normalizer("a", "");
+  EXPECT_EQ(normalizer.normalize("banana"), "bnn");
+}
+
+TEST(NormalizerTest, ReplaceNormalizerAtBoundaries) {
+  // Matches at the very start and very end of the input.
+  ReplaceNormalizer normalizer(" ", "_");
+  EXPECT_EQ(normalizer.normalize(" a b "), "_a_b_");
+}
+
+TEST(NormalizerTest, ReplaceNormalizerConsecutiveMatches) {
+  // Adjacent matches with a multi-byte (3-byte) replacement.
+  ReplaceNormalizer normalizer(" ", "▁");
+  EXPECT_EQ(normalizer.normalize("a   b"), "a▁▁▁b");
+}
+
+TEST(NormalizerTest, ReplaceNormalizerVariableSpanMultiCharContent) {
+  // Variable-length matched spans with a multi-char replacement, including
+  // spans at both boundaries.
+  ReplaceNormalizer normalizer("\\s+", "__");
+  EXPECT_EQ(normalizer.normalize(" a  b "), "__a__b__");
+}
+
+TEST(NormalizerTest, ReplaceNormalizerZeroWidthMatch) {
+  // Zero-width (lookahead) match: insert content before each 'b' without
+  // consuming input. Exercises match.start == match.end in the forward pass.
+  ReplaceNormalizer normalizer("(?=b)", "X");
+  EXPECT_EQ(normalizer.normalize("abc"), "aXbc");
+}
+
 TEST(NormalizerTest, PrependNormalizerBasic) {
   // Test basic prepending
   PrependNormalizer normalizer("_");
