@@ -14,6 +14,7 @@
 #include <cinttypes>
 #include <filesystem>
 #include <fstream>
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,98 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 namespace tokenizers {
+
+void HFWord::merge_all(const detail::MergeMap& merge_map) {
+  const size_t n = tokens.size();
+  if (n < 2) {
+    return;
+  }
+
+  std::vector<int64_t> prev(n), next(n);
+  std::vector<uint32_t> version(n, 0);
+  std::vector<bool> alive(n, true);
+  for (size_t i = 0; i < n; ++i) {
+    prev[i] = static_cast<int64_t>(i) - 1;
+    next[i] = (i + 1 < n) ? static_cast<int64_t>(i + 1) : -1;
+  }
+
+  // (rank, pos, version): lowest rank wins, ties broken by leftmost position to
+  // match left-to-right BPE order. `version` tracks only the left symbol; a
+  // candidate whose right neighbor changed is rejected below by recomputing the
+  // pair's rank and comparing to `c.rank`. That check relies on merge ranks
+  // being unique (they are merge indices), so a changed pair cannot
+  // coincidentally carry the same rank.
+  struct Candidate {
+    uint64_t rank;
+    int64_t pos;
+    uint32_t version;
+  };
+  struct Compare {
+    bool operator()(const Candidate& a, const Candidate& b) const {
+      if (a.rank != b.rank) {
+        return a.rank > b.rank;
+      }
+      return a.pos > b.pos;
+    }
+  };
+  std::priority_queue<Candidate, std::vector<Candidate>, Compare> heap;
+
+  auto push_pair = [&](int64_t i) {
+    if (i < 0 || next[i] < 0) {
+      return;
+    }
+    auto it = merge_map.find({tokens[i], tokens[next[i]]});
+    if (it != merge_map.end()) {
+      heap.push({it->second.first, i, version[i]});
+    }
+  };
+
+  for (size_t i = 0; i + 1 < n; ++i) {
+    push_pair(static_cast<int64_t>(i));
+  }
+
+  while (!heap.empty()) {
+    const Candidate c = heap.top();
+    heap.pop();
+    const int64_t i = c.pos;
+    if (!alive[i] || version[i] != c.version || next[i] < 0) {
+      continue; // stale entry
+    }
+    const int64_t j = next[i];
+    auto it = merge_map.find({tokens[i], tokens[j]});
+    if (it == merge_map.end() || it->second.first != c.rank) {
+      continue; // superseded by a different merge at this position
+    }
+
+    // Merge j into i.
+    tokens[i] = it->second.second;
+    byte_lengths[i] += byte_lengths[j];
+    alive[j] = false;
+    const int64_t jn = next[j];
+    next[i] = jn;
+    if (jn >= 0) {
+      prev[jn] = i;
+    }
+    ++version[i];
+
+    // Only the two adjacencies touching the merged symbol can change.
+    push_pair(prev[i]);
+    push_pair(i);
+  }
+
+  // Compact surviving symbols in list order (head is always index 0; it is only
+  // ever a left operand, never removed).
+  std::vector<uint64_t> merged_tokens;
+  std::vector<size_t> merged_byte_lengths;
+  merged_tokens.reserve(tokens.size());
+  merged_byte_lengths.reserve(byte_lengths.size());
+  for (int64_t i = 0; i != -1; i = next[i]) {
+    merged_tokens.push_back(tokens[i]);
+    merged_byte_lengths.push_back(byte_lengths[i]);
+  }
+  tokens = std::move(merged_tokens);
+  byte_lengths = std::move(merged_byte_lengths);
+}
 
 namespace {
 // Helper to extract token string from either string or object format
@@ -235,12 +328,12 @@ Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
     }
   }
 
-  const detail::TokenMap& merge_ranks =
-      merge_ranks_ ? *merge_ranks_ : token_map;
-
+  // The HFTokenizer override of _byte_pair_merge merges via merge_map_ and
+  // ignores the ranks argument, so token_map is passed only to satisfy the
+  // signature.
   return _byte_pair_merge(
       piece,
-      merge_ranks,
+      token_map,
       [this, &piece, &token_map](uint64_t start, uint64_t stop) {
         std::string key = piece.substr(start, stop - start);
         const auto result = token_map.tryGetInteger(key);
@@ -259,7 +352,7 @@ Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
 
 std::vector<uint64_t> HFTokenizer::_byte_pair_merge(
     const std::string& piece,
-    const detail::TokenMap& ranks,
+    const detail::TokenMap& /*ranks*/,
     std::function<uint64_t(uint64_t, uint64_t)> func) const {
   HFWord word;
   size_t i = 0;
@@ -306,8 +399,8 @@ std::vector<uint64_t> HFTokenizer::_byte_pair_merge(
     i += char_len;
   }
 
-  if (merge_ranks_ && token_map_) {
-    word.merge_all(*merge_ranks_, *token_map_);
+  if (merge_map_) {
+    word.merge_all(*merge_map_);
   }
   return word.tokens;
 }
@@ -460,13 +553,6 @@ Error HFTokenizer::parse_merges(const json& parsed_json) {
         }
       }
     }
-
-    auto merge_ranks_result =
-        detail::build_merge_ranks_map(*merge_map_, *token_map_);
-    if (!merge_ranks_result.ok()) {
-      return merge_ranks_result.error();
-    }
-    merge_ranks_.emplace(std::move(*merge_ranks_result));
   } catch (const std::exception& e) {
     TK_LOG(Error, "Could not parse merges: %s", e.what());
     return Error::LoadFailure;
