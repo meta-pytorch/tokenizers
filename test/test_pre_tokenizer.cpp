@@ -11,6 +11,10 @@
 #include <nlohmann/json.hpp>
 #include <re2/re2.h>
 
+#include <atomic>
+#include <thread>
+#include <vector>
+
 // Local
 #include <pytorch/tokenizers/pre_tokenizer.h>
 
@@ -386,6 +390,83 @@ TEST_F(PreTokenizerConfigTest, SplitWithUnsupportedBehavior) {
               })
           .create(),
       std::runtime_error);
+}
+
+// Regex cache (unicode_regex_split) ///////////////////////////////////////////
+// The ByteLevel pre-tokenizer drives unicode_regex_split, which caches the
+// compiled std::regex/std::wregex per pattern. This test guards that cache:
+// (1) results are deterministic / behavior-neutral, including across the full
+// Unicode White_Space class and near-miss non-whitespace codepoints, and
+// (2) it is thread-safe (the tokenizer pool calls it concurrently).
+class RegexCacheTest : public ::testing::Test {};
+
+TEST_F(RegexCacheTest, ByteLevelDeterministicAndThreadSafe) {
+  ByteLevelPreTokenizer ptok(/*add_prefix_space=*/false);
+
+  const std::vector<std::string> corpus = {
+      "Hello World",
+      "  leading and   multiple   spaces  ",
+      "tabs\t\tand\nnewlines\r\n",
+      "code: { return x; }   // trailing   ",
+      // Unicode White_Space codepoints (must be treated as whitespace).
+      "a\xC2\x85"
+      "b", // U+0085 NEL
+      "a\x0B"
+      "b\x0C"
+      "c", // U+000B VT, U+000C FF
+      "a\xE1\x9A\x80"
+      "b", // U+1680 OGHAM SPACE MARK
+      "a\xE2\x80\x80\xE2\x80\x8A"
+      "b", // U+2000 .. U+200A
+      "a\xE2\x80\xAF"
+      "b\xE2\x81\x9F"
+      "c", // U+202F NNBSP, U+205F MMSP
+      "a\xE3\x80\x80"
+      "b", // U+3000 ideographic space
+      // Near-miss NON-whitespace codepoints (must NOT be treated as ws).
+      "a\xE2\x80\x8B"
+      "b", // U+200B ZERO WIDTH SPACE
+      "a\xE1\xA0\x8E"
+      "b", // U+180E MONGOLIAN VOWEL SEPARATOR
+      "a\xEF\xBB\xBF"
+      "b", // U+FEFF BOM / ZWNBSP
+      // Unicode letters and a representative SID prompt fragment.
+      "caf\xC3\xA9 \xE4\xBD\xA0\xE5\xA5\xBD",
+      "history: i0:<1326-617-1617> i1:<197-296-385> next:",
+  };
+
+  // Single-threaded reference.
+  std::vector<std::vector<std::string>> ref;
+  ref.reserve(corpus.size());
+  for (const auto& s : corpus) {
+    ref.push_back(ptok.pre_tokenize(s));
+    EXPECT_FALSE(ref.back().empty());
+  }
+
+  // Hammer the shared pre-tokenizer (and the static regex cache inside
+  // unicode_regex_split) from many threads; every result must match the
+  // reference. A recompile race or a wrong cache lookup would surface as a
+  // mismatch (or a crash under TSAN).
+  constexpr int kThreads = 16;
+  constexpr int kIters = 200;
+  std::atomic<int> mismatches{0};
+  std::vector<std::thread> threads;
+  threads.reserve(kThreads);
+  for (int t = 0; t < kThreads; ++t) {
+    threads.emplace_back([&]() {
+      for (int iter = 0; iter < kIters; ++iter) {
+        for (size_t i = 0; i < corpus.size(); ++i) {
+          if (ptok.pre_tokenize(corpus[i]) != ref[i]) {
+            mismatches.fetch_add(1, std::memory_order_relaxed);
+          }
+        }
+      }
+    });
+  }
+  for (auto& th : threads) {
+    th.join();
+  }
+  EXPECT_EQ(0, mismatches.load());
 }
 
 TEST_F(PreTokenizerConfigTest, SplitWithInvertTrue) {
