@@ -17,6 +17,7 @@ runtime.cxx_library(
         "@EXECUTORCH_CLIENTS",
     ],
     exported_deps = [
+        "fbsource//third-party/nlohmann-json:nlohmann-json",
         "fbsource//third-party/re2:re2",
     ],
     exported_external_deps = [
@@ -140,7 +141,6 @@ runtime.cxx_library(
         "@EXECUTORCH_CLIENTS",
     ],
     deps = [
-        "fbsource//third-party/nlohmann-json:nlohmann-json",
         ":regex",
     ],
     exported_deps = [

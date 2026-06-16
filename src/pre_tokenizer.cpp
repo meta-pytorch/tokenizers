@@ -71,17 +71,14 @@ PreTokenizer::Ptr PreTokenizerConfig::create() const {
     return PreTokenizer::Ptr(new DigitsPreTokenizer());
   }
   if (type == "ByteLevel") {
-    if (add_prefix_space && pattern) {
-      return PreTokenizer::Ptr(
-          new ByteLevelPreTokenizer(*add_prefix_space, *pattern));
-    }
-    if (add_prefix_space) {
-      return PreTokenizer::Ptr(new ByteLevelPreTokenizer(*add_prefix_space));
-    }
+    const bool prefix_space = add_prefix_space.value_or(true);
+    const bool regex = use_regex.value_or(true);
     if (pattern) {
-      return PreTokenizer::Ptr(new ByteLevelPreTokenizer(*pattern));
+      return PreTokenizer::Ptr(
+          new ByteLevelPreTokenizer(prefix_space, *pattern, regex));
     }
-    return PreTokenizer::Ptr(new ByteLevelPreTokenizer());
+    return PreTokenizer::Ptr(
+        new ByteLevelPreTokenizer(prefix_space, "", regex));
   }
   if (type == "Sequence") {
     if (!pretokenizers || pretokenizers->empty()) {
@@ -136,7 +133,11 @@ PreTokenizerConfig& PreTokenizerConfig::parse_json(const json& json_config) {
       add_prefix_space = json_config.at("add_prefix_space");
     } catch (json::out_of_range&) {
     }
-    // TODO: trim_offsets, use_regex
+    try {
+      use_regex = json_config.at("use_regex");
+    } catch (json::out_of_range&) {
+    }
+    // TODO: trim_offsets
   } else if (type == "Sequence") {
     pretokenizers = std::vector<PreTokenizerConfig>();
     for (const auto& entry : json_config.at("pretokenizers")) {
@@ -265,6 +266,21 @@ namespace {
 constexpr char GPT2_EXPR[] =
     R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)";
 
+// Byte-encode the whole input as a single piece, matching the byte-level
+// alphabet mapping that unicode_regex_split applies via
+// unicode_byte_encoding_process. Used when use_regex is false so the input is
+// not split by the GPT2 regex.
+std::string byte_encode(const std::string& input) {
+  std::string result;
+  // Each input byte maps to a byte-level codepoint that is at most 2 bytes in
+  // UTF-8, so reserve up front to avoid repeated reallocations on the hot path.
+  result.reserve(input.size() * 2);
+  for (const unsigned char byte : input) {
+    result += unicode_byte_to_utf8(byte);
+  }
+  return result;
+}
+
 } // namespace
 
 //////////////////
@@ -273,9 +289,11 @@ constexpr char GPT2_EXPR[] =
 
 ByteLevelPreTokenizer::ByteLevelPreTokenizer(
     bool add_prefix_space,
-    const std::string& pattern)
+    const std::string& pattern,
+    bool use_regex)
     : pattern_(pattern.empty() ? GPT2_EXPR : pattern),
-      add_prefix_space_(add_prefix_space) {}
+      add_prefix_space_(add_prefix_space),
+      use_regex_(use_regex) {}
 
 std::vector<std::string> ByteLevelPreTokenizer::pre_tokenize(
     const std::string& input) const {
@@ -284,6 +302,12 @@ std::vector<std::string> ByteLevelPreTokenizer::pre_tokenize(
   if (add_prefix_space_ && !formatted_input.empty() &&
       formatted_input[0] != ' ') {
     formatted_input.insert(formatted_input.begin(), ' ');
+  }
+
+  // When use_regex is false, do not split with the GPT2 regex; byte-encode the
+  // whole input as a single piece (matches HF ByteLevel use_regex=false).
+  if (!use_regex_) {
+    return {byte_encode(formatted_input)};
   }
 
   return unicode_regex_split(formatted_input, {pattern_});

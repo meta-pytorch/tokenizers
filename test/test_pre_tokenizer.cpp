@@ -93,6 +93,25 @@ TEST_F(ByteLevelPreTokenizerTest, PreTokenizeCustomRegex) {
   assert_split_match(ptok, "Hello World", {"Hell", "o", "ĠW", "o", "rld"});
 }
 
+TEST_F(ByteLevelPreTokenizerTest, PreTokenizeNoRegexSinglePiece) {
+  // use_regex=false: the whole input is byte-encoded as ONE piece, with no
+  // GPT2 split. Space byte (0x20) maps to the byte-level char Ġ.
+  ByteLevelPreTokenizer ptok(
+      /*add_prefix_space=*/false, /*pattern=*/"", /*use_regex=*/false);
+  assert_split_match(ptok, "Hello World", {"HelloĠWorld"});
+  // Punctuation glued to a following letter run stays in one piece (the
+  // divergence this fix targets); the default path would split "(" off.
+  assert_split_match(ptok, "foo(bar", {"foo(bar"});
+}
+
+TEST_F(ByteLevelPreTokenizerTest, PreTokenizeNoRegexWithPrefix) {
+  // The prefix space is added first, then the whole thing is one byte-encoded
+  // piece.
+  ByteLevelPreTokenizer ptok(
+      /*add_prefix_space=*/true, /*pattern=*/"", /*use_regex=*/false);
+  assert_split_match(ptok, "Hello World", {"ĠHelloĠWorld"});
+}
+
 // SequencePreTokenizer ////////////////////////////////////////////////////////
 class SequencePreTokenizerTest : public ::testing::Test {};
 
@@ -118,6 +137,20 @@ TEST_F(SequencePreTokenizerTest, PreTokenizeDigitAndByteLevel) {
        "."});
 }
 
+TEST_F(SequencePreTokenizerTest, PreTokenizeSplitThenByteLevelNoRegex) {
+  // Mirror the production model: Sequence[Split(GPT2-like regex), ByteLevel(
+  // use_regex=false)]. Split glues a leading punctuation char to the following
+  // letter run ("foo(bar" -> ["foo", "(bar"]); with use_regex=false ByteLevel
+  // keeps "(bar" whole. The default ByteLevel would further split it into
+  // "(" and "bar", which is the bug this fix corrects.
+  PreTokenizer::Ptr split = std::make_shared<RegexPreTokenizer>(
+      R"((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+)");
+  PreTokenizer::Ptr byte_no_regex = std::make_shared<ByteLevelPreTokenizer>(
+      /*add_prefix_space=*/false, /*pattern=*/"", /*use_regex=*/false);
+  SequencePreTokenizer ptok({split, byte_no_regex});
+  assert_split_match(ptok, "foo(bar", {"foo", "(bar"});
+}
+
 // PreTokenizerConfig //////////////////////////////////////////////////////////
 //
 // NOTE: When adding a new pre-tokenizer or changing arguments, add it to these
@@ -140,6 +173,11 @@ TEST_F(PreTokenizerConfigTest, AllTypesSuccess) {
   PreTokenizerConfig("ByteLevel")
       .set_add_prefix_space(false)
       .set_pattern(R"(o)")
+      .create();
+  PreTokenizerConfig("ByteLevel").set_use_regex(false).create();
+  PreTokenizerConfig("ByteLevel")
+      .set_add_prefix_space(false)
+      .set_use_regex(false)
       .create();
 
   // Sequence
@@ -203,6 +241,41 @@ TEST_F(PreTokenizerConfigTest, ParseJson) {
        "Ġ",
        "5",
        "."});
+}
+
+TEST_F(PreTokenizerConfigTest, ByteLevelUseRegexParsing) {
+  // use_regex=false -> the whole input is one byte-encoded piece.
+  const auto no_regex = PreTokenizerConfig()
+                            .parse_json(
+                                json{
+                                    {"type", "ByteLevel"},
+                                    {"add_prefix_space", false},
+                                    {"use_regex", false},
+                                })
+                            .create();
+  assert_split_match(*no_regex, "Hello World", {"HelloĠWorld"});
+
+  // use_regex=true -> GPT2 split (the historical default behavior).
+  const auto with_regex = PreTokenizerConfig()
+                              .parse_json(
+                                  json{
+                                      {"type", "ByteLevel"},
+                                      {"add_prefix_space", false},
+                                      {"use_regex", true},
+                                  })
+                              .create();
+  assert_split_match(*with_regex, "Hello World", {"Hello", "ĠWorld"});
+
+  // use_regex omitted -> defaults to true, so behavior is unchanged for configs
+  // that do not set the field.
+  const auto omitted = PreTokenizerConfig()
+                           .parse_json(
+                               json{
+                                   {"type", "ByteLevel"},
+                                   {"add_prefix_space", false},
+                               })
+                           .create();
+  assert_split_match(*omitted, "Hello World", {"Hello", "ĠWorld"});
 }
 
 TEST_F(PreTokenizerConfigTest, ParseJsonOptionalKey) {
@@ -467,6 +540,48 @@ TEST_F(RegexCacheTest, ByteLevelDeterministicAndThreadSafe) {
     th.join();
   }
   EXPECT_EQ(0, mismatches.load());
+}
+
+TEST_F(RegexCacheTest, ByteLevelNoRegexSinglePieceEqualsByteEncoding) {
+  // With use_regex=false the input is never split: each item yields exactly one
+  // piece. That piece must equal the byte-encoding of the whole input, which is
+  // the concatenation of the default (GPT2-split) path's byte-encoded pieces
+  // (splitting happens on codepoint boundaries, so concatenating the encoded
+  // pieces reconstructs the encoding of the whole input). This pins the new
+  // behavior without hardcoding the byte-level alphabet.
+  ByteLevelPreTokenizer no_regex(
+      /*add_prefix_space=*/false, /*pattern=*/"", /*use_regex=*/false);
+  ByteLevelPreTokenizer with_regex(/*add_prefix_space=*/false);
+
+  const std::vector<std::string> corpus = {
+      "Hello World",
+      "  leading and   multiple   spaces  ",
+      "tabs\t\tand\nnewlines\r\n",
+      "code: { return x; }   // trailing   ",
+      "foo(bar",
+      "a(b",
+      "(the",
+      "hi_there",
+      "next:\n",
+      "a\xC2\x85"
+      "b", // U+0085 NEL
+      "a\xE2\x80\x80\xE2\x80\x8A"
+      "b", // U+2000 .. U+200A
+      "a\xE2\x80\x8B"
+      "b", // U+200B ZERO WIDTH SPACE (non-ws)
+      "caf\xC3\xA9 \xE4\xBD\xA0\xE5\xA5\xBD",
+      "history: i0:<1326-617-1617> next:",
+  };
+
+  for (const auto& s : corpus) {
+    const auto one_piece = no_regex.pre_tokenize(s);
+    ASSERT_EQ(one_piece.size(), 1u) << "input: " << s;
+    std::string concat;
+    for (const auto& p : with_regex.pre_tokenize(s)) {
+      concat += p;
+    }
+    EXPECT_EQ(one_piece[0], concat) << "input: " << s;
+  }
 }
 
 TEST_F(PreTokenizerConfigTest, SplitWithInvertTrue) {
