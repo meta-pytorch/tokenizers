@@ -10,6 +10,8 @@
 #include <gtest/gtest.h>
 #include <pytorch/tokenizers/hf_tokenizer.h>
 
+#include <array>
+#include <cstdio>
 #include <fstream>
 
 namespace tokenizers {
@@ -581,6 +583,68 @@ TEST(HFTokenizerTest, TestEmptyAndUnknown) {
   EXPECT_TRUE(unk_result.ok());
   std::vector<uint64_t> expected_unk = {1}; // [UNK]
   EXPECT_EQ(unk_result.get(), expected_unk);
+}
+
+// Strict id-golden for a use_regex=false ByteLevel config, proving the encode
+// path now matches HuggingFace's use_regex=false semantics (and that the
+// historical use_regex=true path is unchanged). The byte-level alphabet maps
+// the printable ASCII bytes 'a' (0x61), '(' (0x28) and 'b' (0x62) to
+// themselves, so the vocab can use the raw characters. The merges combine
+// a + ( -> "a(" then a( + b -> "a(b".
+TEST(HFTokenizerTest, TestByteLevelUseRegexFalseEncode) {
+  const char* json_template = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {
+        "a": 0,
+        "(": 1,
+        "b": 2,
+        "a(": 3,
+        "a(b": 4
+      },
+      "merges": [
+        "a (",
+        "a( b"
+      ]
+    },
+    "normalizer": null,
+    "pre_tokenizer": {
+      "type": "ByteLevel",
+      "add_prefix_space": false,
+      "trim_offsets": false,
+      "use_regex": %s
+    },
+    "added_tokens": []
+  })";
+
+  // use_regex=false: ByteLevel keeps "a(b" whole, so the merges apply and the
+  // input collapses to the single token "a(b" (id 4) -- matching HF.
+  {
+    std::array<char, 1024> buf{};
+    std::snprintf(buf.data(), buf.size(), json_template, "false");
+    TempFile tmpfile(buf.data());
+    HFTokenizer tokenizer;
+    ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+    auto result = tokenizer.encode("a(b", /*bos=*/0, /*eos=*/0);
+    ASSERT_TRUE(result.ok());
+    std::vector<uint64_t> expected = {4};
+    EXPECT_EQ(result.get(), expected);
+  }
+
+  // use_regex=true: ByteLevel splits "a(b" into "a", "(", "b" via the GPT2
+  // regex, so the merges cannot cross piece boundaries and we get three tokens.
+  {
+    std::array<char, 1024> buf{};
+    std::snprintf(buf.data(), buf.size(), json_template, "true");
+    TempFile tmpfile(buf.data());
+    HFTokenizer tokenizer;
+    ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+    auto result = tokenizer.encode("a(b", /*bos=*/0, /*eos=*/0);
+    ASSERT_TRUE(result.ok());
+    std::vector<uint64_t> expected = {0, 1, 2};
+    EXPECT_EQ(result.get(), expected);
+  }
 }
 
 TEST(HFTokenizerTest, TestUnkTokenConfiguration) {

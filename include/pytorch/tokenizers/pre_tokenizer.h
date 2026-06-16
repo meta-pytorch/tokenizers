@@ -105,6 +105,16 @@ class PreTokenizerConfig {
   CONFIG_MEMBER(bool, add_prefix_space)
 
   /**
+   * Used by: ByteLevelPreTokenizer
+   *
+   * When false, ByteLevel does not split the input with the GPT2 regex; the
+   * whole input piece is byte-encoded as a single piece (matches HF's ByteLevel
+   * use_regex=false). Defaults to true to preserve behavior for configs that
+   * omit it.
+   */
+  CONFIG_MEMBER(bool, use_regex)
+
+  /**
    * Used by RegexPreTokenizer
    */
   CONFIG_MEMBER(bool, is_delimiter)
@@ -227,10 +237,14 @@ class ByteLevelPreTokenizer : public PreTokenizer {
    * @param add_prefix_space: Whether to add a leading space to the first word
    * @param pattern: A user-supplied regex to use for token splitting. If not
    *    provided, it use the standard GPT2 pattern.
+   * @param use_regex: Whether to split the input with the regex. If false, the
+   *    whole input piece is byte-encoded as a single piece without splitting
+   *    (matches HF's ByteLevel use_regex=false).
    */
   ByteLevelPreTokenizer(
       bool add_prefix_space = true,
-      const std::string& pattern = "");
+      const std::string& pattern = "",
+      bool use_regex = true);
   explicit ByteLevelPreTokenizer(const std::string& pattern)
       : ByteLevelPreTokenizer(true, pattern) {}
 
@@ -241,6 +255,7 @@ class ByteLevelPreTokenizer : public PreTokenizer {
  private:
   const std::string pattern_;
   const bool add_prefix_space_;
+  const bool use_regex_;
 
 }; // end class ByteLevelPreTokenizer
 
