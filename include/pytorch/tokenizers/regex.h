@@ -38,8 +38,12 @@ class IRegex {
   /**
    * @brief Find all non-overlapping matches in the input string.
    *
+   * Matches are returned in left-to-right order with non-overlapping,
+   * non-decreasing [start, end) byte offsets. Callers (e.g. ReplaceNormalizer)
+   * rely on this ordering.
+   *
    * @param text The input string to search.
-   * @return A vector of strings containing all matched substrings.
+   * @return A vector of Match ranges, one per match.
    */
   virtual std::vector<Match> find_all(const std::string& text) const = 0;
 
