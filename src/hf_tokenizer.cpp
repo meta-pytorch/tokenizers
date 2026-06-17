@@ -335,7 +335,7 @@ Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
       piece,
       token_map,
       [this, &piece, &token_map](uint64_t start, uint64_t stop) {
-        std::string key = piece.substr(start, stop - start);
+        std::string_view key(piece.data() + start, stop - start);
         const auto result = token_map.tryGetInteger(key);
         if (result) {
           return *result;
