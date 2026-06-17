@@ -53,6 +53,14 @@ std::vector<Vector> vectors() {
        "In the beginning the system parsed every token sequentially, which made "
        "long prompts increasingly expensive to process as length grew larger. ",
        348},
+      {"prose_16k",
+       "In the beginning the system parsed every token sequentially, which made "
+       "long prompts increasingly expensive to process as length grew larger. ",
+       696},
+      {"prose_64k",
+       "In the beginning the system parsed every token sequentially, which made "
+       "long prompts increasingly expensive to process as length grew larger. ",
+       2784},
   };
 }
 
