@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #if defined(__APPLE__) || defined(WIN32) || defined(__linux__)
 #define TEST_MEMORY_COMPARISON 1
@@ -271,6 +272,20 @@ struct FixedHash {
   }
 };
 
+struct OffsetBoundaryHash {
+  std::size_t operator()(const std::string_view& str) const {
+    if (str.empty()) {
+      return 0;
+    }
+
+    return static_cast<unsigned char>(str.front()) - 1;
+  }
+
+  std::size_t operator()(std::uint64_t value) const {
+    return static_cast<std::size_t>(value);
+  }
+};
+
 template <typename THash>
 class StringIntegerMapHashTest : public Test {
  public:
@@ -360,4 +375,27 @@ TEST(StringIntegerMapCreateTest, DetectsDuplicateRanks) {
   auto result = StringIntegerMap<>::create(pairs);
   EXPECT_FALSE(result.ok());
   EXPECT_EQ(result.error(), Error::ParseFailure);
+}
+
+TEST(StringIntegerMapCreateTest, HandlesStringElementOffsetsBeyondPayloadSize) {
+  using Container = typename StringIntegerMapTypeBuilder<>::WithIntegerHash<
+      OffsetBoundaryHash>::template WithStringHash<OffsetBoundaryHash>::Map;
+
+  std::vector<std::pair<std::string, std::uint64_t>> source;
+  source.reserve(70);
+  for (std::uint64_t i = 0; i < 70; ++i) {
+    source.emplace_back(std::string(1, static_cast<char>(i + 1)), i);
+  }
+
+  auto map_result = Container::create(source);
+  ASSERT_TRUE(map_result.ok());
+  auto map = std::move(*map_result);
+
+  for (const auto& [expected_string, integer] : source) {
+    EXPECT_THAT(
+        map.tryGetString(integer), Optional(std::string_view(expected_string)))
+        << integer;
+    EXPECT_THAT(map.tryGetInteger(expected_string), Optional(integer))
+        << integer;
+  }
 }
