@@ -422,6 +422,71 @@ TEST(HFTokenizerTest, TestBPEMergeEncode) {
   // verify that merges are parsed and the tokenizer loads successfully.
 }
 
+// The following tests pin HFWord::merge_all behavior. They use null normalizer
+// and null pre-tokenizer so the whole input becomes a single BPE piece, which
+// lets us drive merge_all directly with hand-built vocab/merges.
+namespace {
+std::string merge_tokenizer_json(
+    const std::string& vocab,
+    const std::string& merges,
+    bool byte_fallback = false) {
+  return std::string(R"({"version":"1.0","model":{"type":"BPE","vocab":)") +
+      vocab + R"(,"merges":)" + merges +
+      R"(,"byte_fallback":)" + (byte_fallback ? "true" : "false") +
+      R"(},"normalizer":null,"pre_tokenizer":null,"added_tokens":[]})";
+}
+} // namespace
+
+// Cascading merge: a+b->ab enables ab+c->abc; a trailing symbol stays unmerged.
+TEST(HFTokenizerTest, MergeAllCascades) {
+  TempFile tmpfile(merge_tokenizer_json(
+      R"({"a":0,"b":1,"c":2,"ab":3,"abc":4})", R"(["a b","ab c"])"));
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto result = tokenizer.encode("abcc", 0, 0);
+  ASSERT_TRUE(result.ok());
+  std::vector<uint64_t> expected = {4, 2}; // abc, c
+  EXPECT_EQ(result.get(), expected);
+}
+
+// The globally lowest-rank merge wins even when it is not the leftmost pair:
+// (y z) has rank 0, (x y) has rank 1, so y+z merges first.
+TEST(HFTokenizerTest, MergeAllPicksLowestRankNotLeftmost) {
+  TempFile tmpfile(merge_tokenizer_json(
+      R"({"x":0,"y":1,"z":2,"xy":3,"yz":4})", R"(["y z","x y"])"));
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto result = tokenizer.encode("xyz", 0, 0);
+  ASSERT_TRUE(result.ok());
+  std::vector<uint64_t> expected = {0, 4}; // x, yz
+  EXPECT_EQ(result.get(), expected);
+}
+
+// Overlapping equal-rank candidates: "aaa" with a+a->aa must merge the leftmost
+// pair first (-> [aa, a]), exercising stale-entry invalidation of the overlap.
+TEST(HFTokenizerTest, MergeAllLeftmostOnOverlap) {
+  TempFile tmpfile(
+      merge_tokenizer_json(R"({"a":0,"aa":1})", R"(["a a"])"));
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto result = tokenizer.encode("aaa", 0, 0);
+  ASSERT_TRUE(result.ok());
+  std::vector<uint64_t> expected = {1, 0}; // aa, a
+  EXPECT_EQ(result.get(), expected);
+}
+
+// Merge over byte-fallback symbols: 'c' falls back to <0x63>, then a+b->ab.
+TEST(HFTokenizerTest, MergeAllWithByteFallback) {
+  TempFile tmpfile(merge_tokenizer_json(
+      R"({"a":0,"b":1,"ab":2,"<0x63>":3})", R"(["a b"])", /*byte_fallback=*/true));
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto result = tokenizer.encode("abc", 0, 0);
+  ASSERT_TRUE(result.ok());
+  std::vector<uint64_t> expected = {2, 3}; // ab, <0x63>
+  EXPECT_EQ(result.get(), expected);
+}
+
 TEST(HFTokenizerTest, TestByteFallback) {
   // Create a minimal tokenizer with byte fallback enabled
   // Vocab: "a": 0, "<0x62>": 1 (for 'b')

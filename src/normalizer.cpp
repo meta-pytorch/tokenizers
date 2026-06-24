@@ -16,6 +16,7 @@
 
 // Standard
 #include <algorithm>
+#include <cassert>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -125,14 +126,36 @@ std::string ReplaceNormalizer::normalize(const std::string& input) const {
     return input;
   }
 
-  std::string result = input;
-  auto matches = regex_->find_all(result);
-
-  // Process matches in reverse order to avoid offset issues
-  for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
-    const auto& match = *it;
-    result.replace(match.start, match.end - match.start, content_);
+  auto matches = regex_->find_all(input);
+  if (matches.empty()) {
+    return input;
   }
+
+  // Single forward pass: copy each unmatched span then the replacement. The
+  // previous code mutated the string in place once per match, shifting the
+  // tail each time (O(N^2)); this is O(N) with a single allocation. Relies on
+  // find_all returning matches in left-to-right order with non-overlapping,
+  // non-decreasing offsets (see IRegex::find_all).
+  std::string result;
+  // Exact output size: each match replaces [start, end) with content_. Computed
+  // by addition only (no multiplication) so it cannot overflow before the
+  // matches themselves would.
+  size_t out_size = input.size();
+  for (const auto& match : matches) {
+    out_size += content_.size();
+    out_size -= match.end - match.start;
+  }
+  result.reserve(out_size);
+  size_t prev_end = 0;
+  for (const auto& match : matches) {
+    // Guard the find_all ordering contract so a misbehaving regex wrapper
+    // fails here rather than underflowing match.start - prev_end.
+    assert(match.start >= prev_end && match.end >= match.start);
+    result.append(input, prev_end, match.start - prev_end);
+    result.append(content_);
+    prev_end = match.end;
+  }
+  result.append(input, prev_end, input.size() - prev_end);
 
   return result;
 }
