@@ -270,12 +270,16 @@ Error StringIntegerMap<TStringHash, TIntegerHash, TAllocator>::init(
 
   integer_ = VariableSizedInteger<std::uint64_t>(largest_integer);
   string_size_ = VariableSizedInteger<std::size_t>(largest_string_size);
-  string_offset_ = VariableSizedInteger<std::size_t>(total_string_size);
 
   const auto string_element_data_size =
       ((integer_.getByteCount() + string_size_.getByteCount() + 1) *
        map.size()) +
       total_string_size;
+
+  // string_offset_ stores byte offsets into string_element_data_, including
+  // each element's header bytes, not offsets into only the string payload.
+  string_offset_ = VariableSizedInteger<std::size_t>(string_element_data_size);
+
   const auto integer_element_size = integer_.getByteCount() +
       string_offset_.getByteCount() + string_size_.getByteCount();
   const auto integer_element_data_size = integer_element_size * map.size();
