@@ -3,6 +3,13 @@ load("@fbsource//xplat/executorch/build:runtime_wrapper.bzl", "runtime")
 def define_common_targets():
     if runtime.is_oss:
         runtime.cxx_library(
+            name = "nlohmann_json",
+            _is_external_target = True,
+            public_include_directories = ["json/single_include"],
+            visibility = ["PUBLIC"],
+        )
+
+        runtime.cxx_library(
             name = "abseil",
             srcs = glob(
                 ["abseil-cpp/absl/**/*.cc"],
