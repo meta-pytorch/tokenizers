@@ -22,6 +22,7 @@
 #include <pytorch/tokenizers/error.h>
 #include <pytorch/tokenizers/regex.h>
 #include <pytorch/tokenizers/result.h>
+#include <pytorch/tokenizers/special_token_matcher.h>
 #include <pytorch/tokenizers/string_integer_map.h>
 #include <pytorch/tokenizers/tokenizer.h>
 
@@ -73,22 +74,30 @@ static Result<TokenMap> build_token_map(
 
 inline Result<std::unique_ptr<IRegex>> build_special_token_regex(
     const TokenMap& special_token_map) {
-  std::string special_pattern;
   const std::size_t count = special_token_map.size();
-
-  for (std::size_t i = 0; i < count; ++i) {
-    const auto& [token, _] = special_token_map.getElement(i);
-    if (!special_pattern.empty()) {
-      special_pattern += "|";
-    }
-    special_pattern += re2::RE2::QuoteMeta(std::string(token));
-  }
-
-  if (special_pattern.empty()) {
+  if (count == 0) {
     return static_cast<std::unique_ptr<IRegex>>(nullptr);
   }
-  // Wrap pattern in parentheses for proper grouping
-  return create_regex("(" + special_pattern + ")");
+
+  // Special tokens are a fixed set of literal strings, not a general regex.
+  // Encoding them as an RE2 alternation `(tok1|tok2|...|tokN)` does not scale:
+  // for large added-token vocabularies (e.g. thousands of SID-style tokens)
+  // the alternation exceeds RE2's DFA memory budget and falls back to the slow
+  // NFA engine, dominating encode latency. A trie matcher matches in
+  // O(text_len * max_token_len), independent of vocabulary size (see
+  // SpecialTokenMatcher), and returns non-overlapping leftmost-longest matches
+  // — identical to the alternation whenever no special token is a prefix of
+  // another (always true for SID and standard chat-marker vocabularies) and
+  // matching HuggingFace AddedVocabulary semantics otherwise.
+  std::vector<std::string> tokens;
+  tokens.reserve(count);
+  for (std::size_t i = 0; i < count; ++i) {
+    const auto& [token, _] = special_token_map.getElement(i);
+    tokens.emplace_back(token);
+  }
+  std::unique_ptr<IRegex> matcher =
+      std::make_unique<SpecialTokenMatcher>(tokens);
+  return matcher;
 }
 
 class BPETokenizerBase : public Tokenizer {
