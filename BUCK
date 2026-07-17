@@ -101,8 +101,8 @@ runtime.cxx_library(
         ":headers",
     ],
     exported_external_deps = [
-        "sentencepiece",
         "abseil-cpp",
+        "sentencepiece",
     ],
 )
 
