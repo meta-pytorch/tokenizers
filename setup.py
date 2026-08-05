@@ -151,7 +151,7 @@ class BuildPy(build_py_orig):
 
 setup(
     name="pytorch-tokenizers",
-    version="1.4.0",
+    version="1.4.1",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/meta-pytorch/tokenizers",
@@ -193,6 +193,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Programming Language :: C++",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],

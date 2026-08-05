@@ -29,7 +29,7 @@ jobs:
       test-infra-ref: release/2.13
       with-cuda: disabled
       with-rocm: disabled
-      python-versions: '["3.10", "3.11", "3.12", "3.13"]'
+      python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14"]'
 
   build:
     name: Build Linux wheels
