@@ -21,7 +21,20 @@ static Result<std::unique_ptr<IRegex>> default_create_fallback_regex(
   return tokenizers::Error::RegexFailure;
 }
 
+#ifdef SUPPORT_REGEX_LOOKAHEAD
+// Declared here instead of in the public header because it exists only when
+// regex_lookahead.cpp is built. Naming it is also what keeps that file in the
+// link: a translation unit that only registers itself from a static
+// initializer has nothing pointing at it, so the linker drops it out of a
+// static archive unless the whole archive is force-loaded, and the Apple
+// frameworks merge everything into one archive without that flag.
+Result<std::unique_ptr<IRegex>> create_fallback_regex(
+    const std::string& pattern);
+
+FallbackRegexFn fallback_regex = create_fallback_regex;
+#else
 FallbackRegexFn fallback_regex = default_create_fallback_regex;
+#endif
 
 bool register_override_fallback_regex(FallbackRegexFn fn) {
   TK_LOG(Info, "Registering override fallback regex");
@@ -59,13 +72,20 @@ Result<std::unique_ptr<IRegex>> create_regex(const std::string& pattern) {
     return static_cast<std::unique_ptr<IRegex>>(std::move(re2));
   }
 
-  auto res = get_fallback_regex()(pattern);
-  if (!res.ok()) {
+  auto fallback = get_fallback_regex();
+  auto res = fallback(pattern);
+  if (res.ok()) {
+    return res;
+  }
+  // Asking the pointer, not the build flags, keeps the advice right under both
+  // build systems: only CMake defines SUPPORT_REGEX_LOOKAHEAD, while buck links
+  // the same fallback in through its own whole-archive setting.
+  if (fallback == default_create_fallback_regex) {
     TK_LOG(
         Error,
-        "RE2 doesn't support lookahead patterns. Link with `regex_lookahead` to enable support.");
+        "RE2 could not compile the pattern and no fallback regex engine is linked. Turn on SUPPORT_REGEX_LOOKAHEAD, or depend on the regex_lookahead target, to support patterns such as lookahead.");
   } else {
-    return res;
+    TK_LOG(Error, "No available regex engine could compile the pattern.");
   }
 
   return tokenizers::Error::RegexFailure;

@@ -133,6 +133,19 @@ void Tiktoken::_decode(const std::string& input, std::string& ret) const {
 // -------------------------public method start-------------------------------
 
 Error Tiktoken::load(const std::string& path) {
+  // Callers reach this through a fall-through chain of tokenizer loaders, so a
+  // badly configured Tiktoken has to be reportable rather than fatal.
+  TK_CHECK_OR_RETURN_ERROR(
+      _special_tokens != nullptr, LoadFailure, "no special tokens provided");
+  TK_CHECK_OR_RETURN_ERROR(
+      _bos_token_index < _special_tokens->size() &&
+          _eos_token_index < _special_tokens->size(),
+      LoadFailure,
+      "bos index %zu and eos index %zu must both be below the special token count %zu",
+      _bos_token_index,
+      _eos_token_index,
+      _special_tokens->size());
+
   auto token_map_result = _load_token_map(path);
   if (!token_map_result.ok()) {
     return token_map_result.error();
