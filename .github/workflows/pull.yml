@@ -28,6 +28,11 @@ jobs:
         cmake --build build/test -j9 --config Debug
         pushd build/test && ctest && popd
 
+        # The test build turns the lookahead fallback on, so nothing else here
+        # compiles the branch that leaves it out.
+        cmake -DCMAKE_BUILD_TYPE=Debug -DSUPPORT_REGEX_LOOKAHEAD=OFF . -Bbuild/no-lookahead
+        cmake --build build/no-lookahead -j9 --config Debug
+
         # Install tokenizers
         pip install . -v
         pip install protobuf pytest blobfile transformers>=4.53.1

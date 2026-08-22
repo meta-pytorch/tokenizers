@@ -46,3 +46,31 @@ foreach(test_source_file ${test_source_files})
   add_test(${test_name} "${test_name}")
   set_tests_properties(${test_name} PROPERTIES ENVIRONMENT ${test_env})
 endforeach()
+
+# The lookahead fallback registers itself from a static initializer, so the
+# linker keeps it only if something references it. Every test above hides that,
+# because linking the tokenizers target pulls regex_lookahead in with a
+# whole-archive flag. This one names the archive files instead, so nothing is
+# force loaded, which is the shape the Apple prebuilt frameworks have and the
+# only shape that fails when the reference goes away.
+add_executable(regex_lookahead_link_test regex_lookahead_link_test.cpp)
+# Naming the archive files skips the usage requirements a target would carry, so
+# the headers have to be compiled the same way the archive was.
+target_include_directories(
+  regex_lookahead_link_test
+  PRIVATE $<TARGET_PROPERTY:tokenizers,INTERFACE_INCLUDE_DIRECTORIES>
+)
+target_compile_definitions(
+  regex_lookahead_link_test
+  PRIVATE $<TARGET_PROPERTY:tokenizers,INTERFACE_COMPILE_DEFINITIONS>
+)
+target_link_libraries(
+  regex_lookahead_link_test
+  PRIVATE gtest_main $<TARGET_FILE:tokenizers> $<TARGET_FILE:regex_lookahead>
+          pcre2-8-static re2::re2 sentencepiece-static
+)
+add_dependencies(regex_lookahead_link_test tokenizers regex_lookahead)
+add_test(regex_lookahead_link_test regex_lookahead_link_test)
+set_tests_properties(
+  regex_lookahead_link_test PROPERTIES ENVIRONMENT ${test_env}
+)

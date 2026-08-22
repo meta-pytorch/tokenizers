@@ -188,42 +188,38 @@ TEST_F(TiktokenTest, TestDecodeSpecialTokens) {
   EXPECT_EQ(res_true.get(), "");
 }
 
-TEST_F(TiktokenTest, ConstructionWithInvalidBOSIndex) {
-  // gtest death test doesn't work on iOS:
-  // https://github.com/google/googletest/issues/2834
-#if !GTEST_OS_IOS
-  EXPECT_EXIT(
-      std::make_unique<Tiktoken>(
-          std::make_unique<std::vector<std::string>>(
-              std::vector<std::string>{"<|end_of_text|>"}),
-          1,
-          0),
-#if !GTEST_OS_WINDOWS
-      ::testing::KilledBySignal(SIGABRT),
-#else
-      [](int exit_code) { return exit_code != 0; },
-#endif
-      "");
-#endif
+TEST_F(TiktokenTest, LoadWithInvalidBOSIndex) {
+  Tiktoken tokenizer(
+      std::make_unique<std::vector<std::string>>(
+          std::vector<std::string>{"<|end_of_text|>"}),
+      1,
+      0);
+  EXPECT_EQ(tokenizer.load(modelPath_), Error::LoadFailure);
 }
 
-TEST_F(TiktokenTest, ConstructionWithInvalidEOSIndex) {
-  // gtest death test doesn't work on iOS:
-  // https://github.com/google/googletest/issues/2834
-#if !GTEST_OS_IOS
-  EXPECT_EXIT(
-      std::make_unique<Tiktoken>(
-          std::make_unique<std::vector<std::string>>(
-              std::vector<std::string>{"<|begin_of_text|>"}),
-          0,
-          1),
-#if !GTEST_OS_WINDOWS
-      ::testing::KilledBySignal(SIGABRT),
-#else
-      [](int exit_code) { return exit_code != 0; },
-#endif
-      "");
-#endif
+TEST_F(TiktokenTest, LoadWithInvalidEOSIndex) {
+  Tiktoken tokenizer(
+      std::make_unique<std::vector<std::string>>(
+          std::vector<std::string>{"<|begin_of_text|>"}),
+      0,
+      1);
+  EXPECT_EQ(tokenizer.load(modelPath_), Error::LoadFailure);
+}
+
+TEST_F(TiktokenTest, LoadWithEmptySpecialTokens) {
+  Tiktoken tokenizer(
+      std::make_unique<std::vector<std::string>>(),
+      kBOSTokenIndex,
+      kEOSTokenIndex);
+  EXPECT_EQ(tokenizer.load(modelPath_), Error::LoadFailure);
+}
+
+TEST_F(TiktokenTest, LoadWithNullSpecialTokens) {
+  Tiktoken tokenizer(
+      std::unique_ptr<std::vector<std::string>>(),
+      kBOSTokenIndex,
+      kEOSTokenIndex);
+  EXPECT_EQ(tokenizer.load(modelPath_), Error::LoadFailure);
 }
 
 TEST_F(TiktokenTest, TestLoadInvalidPath) {

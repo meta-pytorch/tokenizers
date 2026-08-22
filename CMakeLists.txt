@@ -153,6 +153,7 @@ if(SUPPORT_REGEX_LOOKAHEAD)
   )
   target_link_options_shared_lib(regex_lookahead)
   target_link_libraries(tokenizers PUBLIC regex_lookahead)
+  target_compile_definitions(tokenizers PRIVATE SUPPORT_REGEX_LOOKAHEAD)
   install(
     TARGETS regex_lookahead pcre2-8-static
     EXPORT tokenizers-targets
