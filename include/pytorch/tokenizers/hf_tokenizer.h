@@ -78,7 +78,7 @@ class HFTokenizer : public detail::BPETokenizerBase {
    * Default initialize with no loaded data
    */
   explicit HFTokenizer() {}
-  ~HFTokenizer() {}
+  ~HFTokenizer() override {}
 
   /**
    * Load the model data into the
