@@ -144,13 +144,11 @@ runtime.cxx_library(
         ":regex",
     ],
     exported_deps = [
+        "fbsource//third-party/nlohmann-json:nlohmann-json",
         "fbsource//third-party/re2:re2",
         ":bpe_tokenizer_base",
         ":headers",
         "//pytorch/tokenizers/third-party:unicode",
-    ],
-    exported_external_deps = [
-        "nlohmann_json",
     ],
 )
 
