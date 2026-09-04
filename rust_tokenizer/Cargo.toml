@@ -1,0 +1,33 @@
+[package]
+name = "pytorch-tokenizers-hf-ffi"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "tokenizers_hf_ffi"
+crate-type = ["staticlib"]
+
+[dependencies]
+tk-encode = { git = "https://github.com/huggingface/tokenizers", rev = "054bdf469b2cf416c0da953923d88c82f4d765b5", default-features = false }
+tk-serialization = { git = "https://github.com/huggingface/tokenizers", rev = "054bdf469b2cf416c0da953923d88c82f4d765b5" }
+
+[dev-dependencies]
+tk-serialization = { git = "https://github.com/huggingface/tokenizers", rev = "054bdf469b2cf416c0da953923d88c82f4d765b5", features = ["write"] }
+
+# The `.tok` branch relies on PtrHash's dependency gates until they are
+# available in a crates.io release. Pin the same revision rather than following
+# the mutable upstream branch.
+[patch.crates-io]
+ptr_hash = { git = "https://github.com/ArthurZucker/PtrHash", rev = "fff63a67eec9b48b693b0d3d2b253db78c0b9858" }
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+strip = true
+
+[profile.minsize]
+inherits = "release"
+opt-level = "z"
+panic = "abort"
