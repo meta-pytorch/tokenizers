@@ -96,12 +96,7 @@ NormalizerConfig& NormalizerConfig::parse_json(const json& json_config) {
     for (const auto& entry : json_config.at("normalizers")) {
       normalizers->push_back(NormalizerConfig().parse_json(entry));
     }
-  } else if (type == "NFC") {
-    // NFC normalizer has no additional configuration parameters
-    TK_LOG(
-        Info,
-        "Using NFC normalizer. Please notice that our implementation may not handle all edge cases.");
-  } else {
+  } else if (type != "NFC") {
     throw std::runtime_error("Unsupported Normalizer type: " + type);
   }
   return *this;

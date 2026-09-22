@@ -31,6 +31,7 @@ SOFTWARE.
 
 #include "unicode.h"
 #include "unicode-data.h"
+#include "unicode-nfc-data.h"
 
 #include <algorithm>
 #include <cassert>
@@ -49,16 +50,6 @@ SOFTWARE.
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-// Hash function for std::pair<uint32_t, uint32_t> used in composition table
-namespace std {
-    template<>
-    struct hash<std::pair<uint32_t, uint32_t>> {
-        std::size_t operator()(const std::pair<uint32_t, uint32_t>& p) const {
-            return std::hash<uint64_t>{}(((uint64_t)p.first << 32) | p.second);
-        }
-    };
-}
 
 size_t unicode_len_utf8(char src) {
   const size_t lookup[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 4};
@@ -974,203 +965,92 @@ std::vector<std::string> unicode_regex_split(
   return unicode_byte_encoding_process(bpe_words);
 }
 
-// Get canonical combining class for a codepoint using existing flags data
-static uint8_t get_combining_class(uint32_t cpt) {
-    codepoint_flags flags = unicode_cpt_flags(cpt);
+namespace {
 
-    // Use the existing flag system to determine combining class
-    if (flags.is_accent_mark) {
-        // Most combining marks have class 230, but some have different classes
-        // This is a simplified mapping based on common Unicode patterns
-        if (cpt >= 0x0591 && cpt <= 0x05BD) return 220; // Hebrew accents
-        if (cpt >= 0x05BF && cpt <= 0x05C7) return 230; // Hebrew points
-        if (cpt >= 0x0610 && cpt <= 0x061A) return 230; // Arabic marks
-        if (cpt >= 0x064B && cpt <= 0x065F) return 30;  // Arabic vowels
-        if (cpt >= 0x0670 && cpt <= 0x0670) return 35;  // Arabic superscript alef
-        if (cpt >= 0x06D6 && cpt <= 0x06E4) return 230; // Arabic small high marks
-        if (cpt >= 0x06E7 && cpt <= 0x06E8) return 230; // Arabic small high marks
-        if (cpt >= 0x06EA && cpt <= 0x06ED) return 220; // Arabic small low marks
+uint8_t combining_class(uint32_t codepoint) {
+  const auto& table = unicode_nfc::combining_classes;
+  const auto* it = std::lower_bound(
+      std::begin(table), std::end(table), codepoint,
+      [](const auto& entry, uint32_t value) { return entry.codepoint < value; });
+  return it != std::end(table) && it->codepoint == codepoint ? it->value : 0;
+}
 
-        // Default combining class for most combining marks
-        return 230;
+void canonical_decompose(uint32_t codepoint, std::vector<uint32_t>& output) {
+  // Hangul syllables decompose algorithmically (Unicode Standard, section 3.12).
+  if (codepoint >= 0xAC00 && codepoint < 0xAC00 + 11172) {
+    const auto syllable = codepoint - 0xAC00;
+    output.push_back(0x1100 + syllable / 588);
+    output.push_back(0x1161 + (syllable % 588) / 28);
+    if (syllable % 28 != 0) {
+      output.push_back(0x11A7 + syllable % 28);
     }
-
-    return 0; // Non-combining character (starter)
+    return;
+  }
+  const auto& table = unicode_nfc::decompositions;
+  const auto* it = std::lower_bound(
+      std::begin(table), std::end(table), codepoint,
+      [](const auto& entry, uint32_t value) { return entry.codepoint < value; });
+  if (it == std::end(table) || it->codepoint != codepoint) {
+    output.push_back(codepoint);
+    return;
+  }
+  canonical_decompose(it->first, output);
+  if (it->second != 0) {
+    canonical_decompose(it->second, output);
+  }
 }
 
-// Apply canonical ordering using bubble sort (simple but correct)
-static void canonical_order(std::vector<uint32_t>& cpts) {
-    for (size_t i = 1; i < cpts.size(); ++i) {
-        for (size_t j = i; j > 0; --j) {
-            uint8_t cc1 = get_combining_class(cpts[j-1]);
-            uint8_t cc2 = get_combining_class(cpts[j]);
-
-            // Only reorder if both have non-zero combining class and are out of order
-            if (cc1 > cc2 && cc2 != 0) {
-                std::swap(cpts[j-1], cpts[j]);
-            } else {
-                break;
-            }
-        }
-    }
+uint32_t canonical_compose(uint32_t first, uint32_t second) {
+  if (first >= 0x1100 && first < 0x1100 + 19 &&
+      second >= 0x1161 && second < 0x1161 + 21) {
+    return 0xAC00 + ((first - 0x1100) * 21 + second - 0x1161) * 28;
+  }
+  if (first >= 0xAC00 && first < 0xAC00 + 11172 &&
+      (first - 0xAC00) % 28 == 0 && second > 0x11A7 && second < 0x11A7 + 28) {
+    return first + second - 0x11A7;
+  }
+  const uint64_t pair = (static_cast<uint64_t>(first) << 32) | second;
+  const auto& table = unicode_nfc::compositions;
+  const auto* it = std::lower_bound(
+      std::begin(table), std::end(table), pair,
+      [](const auto& entry, uint64_t value) { return entry.pair < value; });
+  return it != std::end(table) && it->pair == pair ? it->codepoint : 0;
 }
 
-// Build composition table by reverse-engineering the NFD data
-static std::unordered_map<std::pair<uint32_t, uint32_t>, uint32_t> build_composition_table() {
-    std::unordered_map<std::pair<uint32_t, uint32_t>, uint32_t> composition_map;
-
-    // Iterate through all NFD mappings to build reverse composition table
-    for (const auto& range : unicode_ranges_nfd) {
-        for (uint32_t cpt = range.first; cpt <= range.last; ++cpt) {
-            uint32_t base = range.nfd;
-
-            // For NFC, we need to figure out what combining character was removed
-            // This is a simplified approach that works for the most common cases
-
-            // Common diacritic mappings based on the composed character
-            uint32_t combining = 0;
-
-            // Determine combining character based on the composed character
-            // This is derived from common Unicode patterns
-            switch (cpt) {
-                // Grave accent (0x0300)
-                case 0x00C0: case 0x00E0: // À à
-                case 0x00C8: case 0x00E8: // È è
-                case 0x00CC: case 0x00EC: // Ì ì
-                case 0x00D2: case 0x00F2: // Ò ò
-                case 0x00D9: case 0x00F9: // Ù ù
-                case 0x01CD: case 0x01CE: // Ǎ ǎ
-                case 0x01CF: case 0x01D0: // Ǐ ǐ
-                case 0x01D1: case 0x01D2: // Ǒ ǒ
-                case 0x01D3: case 0x01D4: // Ǔ ǔ
-                    combining = 0x0300; break;
-
-                // Acute accent (0x0301)
-                case 0x00C1: case 0x00E1: // Á á
-                case 0x00C9: case 0x00E9: // É é
-                case 0x00CD: case 0x00ED: // Í í
-                case 0x00D3: case 0x00F3: // Ó ó
-                case 0x00DA: case 0x00FA: // Ú ú
-                case 0x00DD: case 0x00FD: // Ý ý
-                    combining = 0x0301; break;
-
-                // Circumflex (0x0302)
-                case 0x00C2: case 0x00E2: // Â â
-                case 0x00CA: case 0x00EA: // Ê ê
-                case 0x00CE: case 0x00EE: // Î î
-                case 0x00D4: case 0x00F4: // Ô ô
-                case 0x00DB: case 0x00FB: // Û û
-                    combining = 0x0302; break;
-
-                // Tilde (0x0303)
-                case 0x00C3: case 0x00E3: // Ã ã
-                case 0x00D1: case 0x00F1: // Ñ ñ
-                case 0x00D5: case 0x00F5: // Õ õ
-                    combining = 0x0303; break;
-
-                // Diaeresis (0x0308)
-                case 0x00C4: case 0x00E4: // Ä ä
-                case 0x00CB: case 0x00EB: // Ë ë
-                case 0x00CF: case 0x00EF: // Ï ï
-                case 0x00D6: case 0x00F6: // Ö ö
-                case 0x00DC: case 0x00FC: // Ü ü
-                case 0x00FF:              // ÿ
-                    combining = 0x0308; break;
-
-                // Ring above (0x030A)
-                case 0x00C5: case 0x00E5: // Å å
-                    combining = 0x030A; break;
-
-                // Cedilla (0x0327)
-                case 0x00C7: case 0x00E7: // Ç ç
-                    combining = 0x0327; break;
-
-                default:
-                    // For other characters, try to infer from Unicode blocks
-                    if (cpt >= 0x0100 && cpt <= 0x017F) {
-                        // Extended Latin A - try common patterns
-                        if ((cpt & 1) == 0) { // Even codepoints (uppercase)
-                            if (cpt >= 0x0100 && cpt <= 0x0105) combining = 0x0304; // macron
-                            else if (cpt >= 0x0102 && cpt <= 0x0107) combining = 0x0306; // breve
-                            else if (cpt >= 0x0104 && cpt <= 0x0119) combining = 0x0328; // ogonek
-                            else if (cpt >= 0x0106 && cpt <= 0x010D) combining = 0x0301; // acute
-                            else if (cpt >= 0x0108 && cpt <= 0x010F) combining = 0x0302; // circumflex
-                            else if (cpt >= 0x010A && cpt <= 0x0111) combining = 0x0307; // dot above
-                            else if (cpt >= 0x010C && cpt <= 0x0165) combining = 0x030C; // caron
-                        }
-                    }
-                    break;
-            }
-
-            // Only add to composition table if we identified a combining character
-            if (combining != 0) {
-                composition_map[{base, combining}] = cpt;
-            }
-        }
-    }
-
-    return composition_map;
-}
-
-// Get the composition table (built once, cached)
-static const std::unordered_map<std::pair<uint32_t, uint32_t>, uint32_t>& get_composition_table() {
-    static const auto composition_table = build_composition_table();
-    return composition_table;
-}
+} // namespace
 
 std::vector<uint32_t> unicode_cpts_normalize_nfc(
     const std::vector<uint32_t>& cpts) {
-
-    // Step 1: Apply NFD (canonical decomposition) using existing implementation
-    std::vector<uint32_t> nfd_result = unicode_cpts_normalize_nfd(cpts);
-
-    // Step 2: Apply canonical ordering
-    canonical_order(nfd_result);
-
-    // Step 3: Apply canonical composition
-    const auto& composition_table = get_composition_table();
-    std::vector<uint32_t> result;
-    result.reserve(nfd_result.size());
-
-    size_t i = 0;
-    while (i < nfd_result.size()) {
-        uint32_t starter = nfd_result[i];
-        result.push_back(starter);
-
-        // Only try to compose if this is a starter (combining class 0)
-        if (get_combining_class(starter) == 0) {
-            size_t last_starter_pos = result.size() - 1;
-
-            // Look for composable combining marks after this starter
-            size_t j = i + 1;
-            while (j < nfd_result.size()) {
-                uint32_t combining = nfd_result[j];
-                uint8_t cc = get_combining_class(combining);
-
-                // If we hit another starter, stop
-                if (cc == 0) break;
-
-                // Try to compose with the last starter
-                auto key = std::make_pair(result[last_starter_pos], combining);
-                auto it = composition_table.find(key);
-
-                if (it != composition_table.end()) {
-                    // Compose: replace starter with composed character
-                    result[last_starter_pos] = it->second;
-                    // Skip this combining character
-                    ++j;
-                    continue;
-                }
-
-                // No composition possible, add the combining character
-                result.push_back(combining);
-                ++j;
-            }
-            i = j;
-        } else {
-            ++i;
-        }
+  std::vector<uint32_t> decomposed;
+  decomposed.reserve(cpts.size());
+  for (const auto codepoint : cpts) {
+    canonical_decompose(codepoint, decomposed);
+  }
+  for (size_t i = 1; i < decomposed.size(); ++i) {
+    const auto ccc = combining_class(decomposed[i]);
+    for (size_t j = i; ccc != 0 && j > 0 &&
+         combining_class(decomposed[j - 1]) > ccc; --j) {
+      std::swap(decomposed[j - 1], decomposed[j]);
     }
-
-    return result;
+  }
+  std::vector<uint32_t> result;
+  result.reserve(decomposed.size());
+  size_t starter = 0;
+  uint8_t last_class = 0;
+  for (const auto codepoint : decomposed) {
+    const auto ccc = combining_class(codepoint);
+    if (!result.empty() && (last_class == 0 || last_class < ccc)) {
+      const auto composed = canonical_compose(result[starter], codepoint);
+      if (composed != 0) {
+        result[starter] = composed;
+        continue;
+      }
+    }
+    if (ccc == 0) {
+      starter = result.size();
+    }
+    result.push_back(codepoint);
+    last_class = ccc;
+  }
+  return result;
 }

@@ -186,3 +186,72 @@ TEST(NormalizerTest, ConfigBuilder) {
   std::string result = normalizer->normalize(input);
   EXPECT_EQ(result, expected);
 }
+
+TEST(NormalizerTest, NFCNormalizerCanonicalComposition) {
+  NFCNormalizer normalizer;
+  EXPECT_EQ(normalizer.normalize("Cafe\u0301"), "Caf\u00e9");
+  EXPECT_EQ(normalizer.normalize("A\u030c"), "\u01cd");
+  EXPECT_EQ(normalizer.normalize("s\u0323\u0307"), "\u1e69");
+}
+
+TEST(NormalizerTest, NFCNormalizerPreservesNormalizedText) {
+  NFCNormalizer normalizer;
+  EXPECT_EQ(normalizer.normalize(""), "");
+  EXPECT_EQ(normalizer.normalize("Hello world"), "Hello world");
+  EXPECT_EQ(
+      normalizer.normalize("\u00e9\u01cd\u1e69\uac01"),
+      "\u00e9\u01cd\u1e69\uac01");
+}
+
+TEST(NormalizerTest, NFCNormalizerCanonicalSingleton) {
+  NFCNormalizer normalizer;
+  // ANGSTROM SIGN canonically decomposes to LATIN CAPITAL LETTER A WITH RING.
+  EXPECT_EQ(normalizer.normalize("\u212b"), "\u00c5");
+}
+
+TEST(NormalizerTest, NFCNormalizerCompositionExclusions) {
+  NFCNormalizer normalizer;
+  // These canonical decompositions must not recompose in NFC.
+  EXPECT_EQ(normalizer.normalize("\u0958"), "\u0915\u093c");
+  EXPECT_EQ(normalizer.normalize("\u0915\u093c"), "\u0915\u093c");
+  EXPECT_EQ(normalizer.normalize("\U0001d15e"), "\U0001d157\U0001d165");
+}
+
+TEST(NormalizerTest, NFCNormalizerPreservesCompatibilityCharacters) {
+  NFCNormalizer normalizer;
+  // NFC preserves ligatures and fullwidth characters.
+  EXPECT_EQ(normalizer.normalize("\ufb01\uff21"), "\ufb01\uff21");
+}
+
+TEST(NormalizerTest, NFCNormalizerCanonicalOrdering) {
+  NFCNormalizer normalizer;
+  EXPECT_EQ(normalizer.normalize("a\u0315\u0300"), "\u00e0\u0315");
+  EXPECT_EQ(normalizer.normalize("\u05e9\u05c1\u05b8"), "\u05e9\u05b8\u05c1");
+  EXPECT_EQ(normalizer.normalize("\u0628\u0651\u064e"), "\u0628\u064e\u0651");
+  // Leading combining marks are ordered without crossing the next starter.
+  EXPECT_EQ(normalizer.normalize("\u0315\u0300a"), "\u0300\u0315a");
+}
+
+TEST(NormalizerTest, NFCNormalizerCompositionBlocking) {
+  NFCNormalizer normalizer;
+  // An intervening mark of the same combining class blocks composition.
+  EXPECT_EQ(normalizer.normalize("A\u0305\u030a"), "A\u0305\u030a");
+  // An intervening mark of a lower combining class permits composition.
+  EXPECT_EQ(normalizer.normalize("A\u0327\u030a"), "\u00c5\u0327");
+}
+
+TEST(NormalizerTest, NFCNormalizerHangulComposition) {
+  NFCNormalizer normalizer;
+  EXPECT_EQ(normalizer.normalize("\u1100\u1161"), "\uac00");
+  EXPECT_EQ(normalizer.normalize("\u1100\u1161\u11a8"), "\uac01");
+  EXPECT_EQ(normalizer.normalize("\uac00\u11a8"), "\uac01");
+  // A combining mark between Jamo prevents their composition.
+  EXPECT_EQ(normalizer.normalize("\u1100\u0301\u1161"), "\u1100\u0301\u1161");
+}
+
+TEST(NormalizerTest, NormalizerConfigNFC) {
+  NormalizerConfig config;
+  config.parse_json(nlohmann::json{{"type", "NFC"}});
+  auto normalizer = config.create();
+  EXPECT_EQ(normalizer->normalize("Cafe\u0301"), "Caf\u00e9");
+}
