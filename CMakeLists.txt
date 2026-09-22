@@ -131,14 +131,6 @@ if(SUPPORT_REGEX_LOOKAHEAD)
   set(PCRE2_BUILD_DOCS OFF)
   set(PCRE2_BUILD_LIBPCRE2_PDB OFF)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third-party/pcre2)
-
-  # Set the INTERFACE_INCLUDE_DIRECTORIES property for pcre2-8-static
-  set_target_properties(
-    pcre2-8-static
-    PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/third-party/pcre2>
-  )
   add_library(
     regex_lookahead STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pcre2_regex.cpp

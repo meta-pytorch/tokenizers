@@ -110,7 +110,7 @@ def define_common_targets():
             ],
             exported_headers = {"pcre2.h": ":pcre2_h_generic"},
             headers = {"config.h": ":config_h_generic"},
-            # Preprocessor flags from https://github.com/PCRE2Project/pcre2/blob/2e03e323339ab692640626f02f8d8d6f95bff9c6/BUILD.bazel#L23.
+            # Preprocessor flags from https://github.com/PCRE2Project/pcre2/blob/7978954dbd2efc6f2196869290553cf1871b4ce6/BUILD.bazel#L23.
             preprocessor_flags = [
                 "-DHAVE_CONFIG_H",
                 "-DHAVE_MEMMOVE",
