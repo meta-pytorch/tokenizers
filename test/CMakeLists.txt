@@ -32,6 +32,9 @@ set(gtest_force_shared_crt
 FetchContent_MakeAvailable(googletest)
 
 file(GLOB test_source_files test_*.cpp)
+if(NOT TOKENIZERS_BUILD_CHAT_TEMPLATE)
+  list(FILTER test_source_files EXCLUDE REGEX "test_chat_template\\.cpp$")
+endif()
 
 set(test_env "RESOURCES_PATH=${CMAKE_CURRENT_SOURCE_DIR}/resources")
 enable_testing()
@@ -43,6 +46,9 @@ foreach(test_source_file ${test_source_files})
     ${test_name} PRIVATE GTEST_INCLUDE_PATH ${TOKENIZERS_INCLUDE_DIRS}
   )
   target_link_libraries(${test_name} PUBLIC gtest_main GTest::gmock tokenizers)
+  if(test_name STREQUAL "test_chat_template")
+    target_link_libraries(${test_name} PRIVATE tokenizers::chat_template)
+  endif()
   add_test(${test_name} "${test_name}")
   set_tests_properties(${test_name} PROPERTIES ENVIRONMENT ${test_env})
 endforeach()
