@@ -39,7 +39,7 @@ class Pcre2Regex : public IRegex {
   /**
    * @brief Destructor to clean up PCRE2 resources.
    */
-  ~Pcre2Regex();
+  ~Pcre2Regex() override;
 
   /**
    * @brief Return all non-overlapping matches found in the input string.
