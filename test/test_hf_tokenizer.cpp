@@ -431,8 +431,8 @@ std::string merge_tokenizer_json(
     const std::string& merges,
     bool byte_fallback = false) {
   return std::string(R"({"version":"1.0","model":{"type":"BPE","vocab":)") +
-      vocab + R"(,"merges":)" + merges +
-      R"(,"byte_fallback":)" + (byte_fallback ? "true" : "false") +
+      vocab + R"(,"merges":)" + merges + R"(,"byte_fallback":)" +
+      (byte_fallback ? "true" : "false") +
       R"(},"normalizer":null,"pre_tokenizer":null,"added_tokens":[]})";
 }
 } // namespace
@@ -465,8 +465,7 @@ TEST(HFTokenizerTest, MergeAllPicksLowestRankNotLeftmost) {
 // Overlapping equal-rank candidates: "aaa" with a+a->aa must merge the leftmost
 // pair first (-> [aa, a]), exercising stale-entry invalidation of the overlap.
 TEST(HFTokenizerTest, MergeAllLeftmostOnOverlap) {
-  TempFile tmpfile(
-      merge_tokenizer_json(R"({"a":0,"aa":1})", R"(["a a"])"));
+  TempFile tmpfile(merge_tokenizer_json(R"({"a":0,"aa":1})", R"(["a a"])"));
   HFTokenizer tokenizer;
   ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
   auto result = tokenizer.encode("aaa", 0, 0);
@@ -478,7 +477,9 @@ TEST(HFTokenizerTest, MergeAllLeftmostOnOverlap) {
 // Merge over byte-fallback symbols: 'c' falls back to <0x63>, then a+b->ab.
 TEST(HFTokenizerTest, MergeAllWithByteFallback) {
   TempFile tmpfile(merge_tokenizer_json(
-      R"({"a":0,"b":1,"ab":2,"<0x63>":3})", R"(["a b"])", /*byte_fallback=*/true));
+      R"({"a":0,"b":1,"ab":2,"<0x63>":3})",
+      R"(["a b"])",
+      /*byte_fallback=*/true));
   HFTokenizer tokenizer;
   ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
   auto result = tokenizer.encode("abc", 0, 0);
