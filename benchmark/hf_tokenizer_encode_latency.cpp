@@ -77,7 +77,8 @@ int main(int argc, char** argv) {
     errno = 0;
     reps = std::strtol(argv[2], &end, 10);
     if (*end != '\0' || errno == ERANGE || reps <= 0) {
-      std::fprintf(stderr, "reps must be a positive integer, got '%s'\n", argv[2]);
+      std::fprintf(
+          stderr, "reps must be a positive integer, got '%s'\n", argv[2]);
       return 2;
     }
   }
