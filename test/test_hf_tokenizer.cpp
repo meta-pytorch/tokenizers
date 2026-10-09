@@ -488,6 +488,45 @@ TEST(HFTokenizerTest, MergeAllWithByteFallback) {
   EXPECT_EQ(result.get(), expected);
 }
 
+// Added tokens with "special": false (e.g. Qwen's <think>, Gemma's whitespace
+// runs) must not be skipped by decode(skip_special_tokens=true), and must stay
+// in the BPE vocab so merges can still produce them.
+TEST(HFTokenizerTest, NonSpecialAddedTokens) {
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {"a": 0, "▁": 1, "▁▁": 2, "<s>": 3, "<think>": 4},
+      "merges": ["▁ ▁"]
+    },
+    "normalizer": {"type": "Replace", "pattern": {"String": " "}, "content": "▁"},
+    "pre_tokenizer": null,
+    "added_tokens": [
+      {"id": 2, "content": "▁▁", "special": false},
+      {"id": 3, "content": "<s>", "special": true},
+      {"id": 4, "content": "<think>", "special": false}
+    ]
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  EXPECT_EQ(tokenizer.vocab_size(), 5);
+
+  auto decoded = tokenizer.decode({3, 4, 0}, /*skip_special_tokens=*/true);
+  ASSERT_TRUE(decoded.ok());
+  EXPECT_EQ(decoded.get(), "<think>a");
+
+  auto single = tokenizer.decode(0, 4, /*skip_special_tokens=*/true);
+  ASSERT_TRUE(single.ok());
+  EXPECT_EQ(single.get(), "<think>");
+
+  auto encoded = tokenizer.encode("a  a", /*bos=*/0, /*eos=*/0);
+  ASSERT_TRUE(encoded.ok());
+  std::vector<uint64_t> expected = {0, 2, 0}; // a, ▁▁, a
+  EXPECT_EQ(encoded.get(), expected);
+}
+
 TEST(HFTokenizerTest, TestByteFallback) {
   // Create a minimal tokenizer with byte fallback enabled
   // Vocab: "a": 0, "<0x62>": 1 (for 'b')

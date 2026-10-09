@@ -145,6 +145,13 @@ class BPETokenizerBase : public Tokenizer {
       const TokenMap& ranks,
       std::function<uint64_t(uint64_t, uint64_t)> func) const;
 
+  // Whether a token id from special_token_map_ should be dropped by
+  // decode(..., skip_special_tokens=true). By default every entry of
+  // special_token_map_ is treated as special.
+  virtual bool is_special_token_id_(uint64_t /*token*/) const {
+    return true;
+  }
+
   // Protected members that can be overloaded by other BPE tokenizers
   std::unique_ptr<IRegex> special_token_regex_;
   std::optional<TokenMap> token_map_;
