@@ -13,12 +13,18 @@ concurrency:
 
 jobs:
   unittest-linux:
-    name: unittest-linux
+    name: unittest-linux (${{ matrix.arch }})
     uses: pytorch/test-infra/.github/workflows/linux_job_v2.yml@main
     strategy:
       fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: linux.2xlarge
+          - arch: aarch64
+            runner: linux.arm64.2xlarge
     with:
-      runner: linux.2xlarge
+      runner: ${{ matrix.runner }}
       submodules: 'true'
       ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       timeout: 90
