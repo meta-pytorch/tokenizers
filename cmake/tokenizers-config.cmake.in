@@ -25,6 +25,25 @@ endif()
 find_dependency(re2 REQUIRED)
 find_dependency(absl REQUIRED)
 
+# The optional .tok backend is a C++ archive with a Rust static-library
+# dependency. Define the latter before importing the exported targets when the
+# archive is present. Merely finding the package does not link either target.
+if(WIN32)
+  set(_TOKENIZERS_HF_FFI_NAME "tokenizers_hf_ffi.lib")
+else()
+  set(_TOKENIZERS_HF_FFI_NAME "libtokenizers_hf_ffi.a")
+endif()
+set(_TOKENIZERS_HF_FFI "${TOKENIZERS_LIBDIR}/${_TOKENIZERS_HF_FFI_NAME}")
+if(EXISTS "${_TOKENIZERS_HF_FFI}" AND NOT TARGET tokenizers_hf_ffi)
+  if(UNIX AND NOT APPLE)
+    find_dependency(Threads)
+  endif()
+  add_library(tokenizers_hf_ffi STATIC IMPORTED)
+  set_target_properties(
+    tokenizers_hf_ffi PROPERTIES IMPORTED_LOCATION "${_TOKENIZERS_HF_FFI}"
+  )
+endif()
+
 # Include the exported targets file
 include("${CMAKE_CURRENT_LIST_DIR}/tokenizers-targets.cmake")
 
