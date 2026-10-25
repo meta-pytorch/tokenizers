@@ -1,0 +1,42 @@
+[package]
+name = "pytorch-tokenizers-hf-ffi"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "tokenizers_hf_ffi"
+crate-type = ["staticlib"]
+
+[dependencies]
+serde_json = "1.0"
+tk-convert = { version = "=0.1.0-rc.2", default-features = false }
+tk-encode = { version = "=0.1.0-rc.2", default-features = false, features = [
+  "bpe",
+  "fancy-regex",
+  "normalizers",
+  "unicode-scripts",
+  "unigram",
+  "wordlevel",
+  "wordpiece",
+] }
+tk-serialize = { version = "=0.1.0-rc.2", default-features = false, features = [
+  "bpe",
+  "deserialize",
+  "fancy-regex",
+  "normalizers",
+  "unicode-scripts",
+  "unigram",
+  "wordlevel",
+  "wordpiece",
+] }
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+strip = true
+
+[profile.minsize]
+inherits = "release"
+opt-level = "z"
+panic = "abort"
