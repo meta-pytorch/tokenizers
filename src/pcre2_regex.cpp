@@ -21,6 +21,15 @@ static bool is_utf8_error(int error_code) {
       error_code <= PCRE2_ERROR_UTF8_ERR1;
 }
 
+// Whether offset is inside a multi-byte UTF-8 character, i.e. on one of its
+// continuation bytes (10xxxxxx) rather than on a character boundary
+static bool is_inside_utf8_char(
+    PCRE2_SPTR subject,
+    PCRE2_SIZE subject_length,
+    PCRE2_SIZE offset) {
+  return offset < subject_length && (subject[offset] & 0xC0) == 0x80;
+}
+
 Error Pcre2Regex::compile(const std::string& pattern) {
   int error_code;
   PCRE2_SIZE error_offset;
@@ -140,8 +149,7 @@ std::vector<Match> Pcre2Regex::find_all(const std::string& text) const {
     // started inside it fails with PCRE2_ERROR_BADUTFOFFSET.
     if (ovector[0] == ovector[1]) {
       offset++;
-      while (utf_ && offset < subject_length &&
-             (subject[offset] & 0xC0) == 0x80) {
+      while (utf_ && is_inside_utf8_char(subject, subject_length, offset)) {
         offset++;
       }
     }
@@ -152,8 +160,7 @@ std::vector<Match> Pcre2Regex::find_all(const std::string& text) const {
     // skip the check while they start on a character boundary. (A match can
     // end inside a character only with \C; keep checking there so that case
     // still fails with PCRE2_ERROR_BADUTFOFFSET.)
-    options =
-        utf_ && offset < subject_length && (subject[offset] & 0xC0) == 0x80
+    options = utf_ && is_inside_utf8_char(subject, subject_length, offset)
         ? 0
         : PCRE2_NO_UTF_CHECK;
   }
