@@ -18,6 +18,7 @@ runtime.cxx_library(
     ],
     exported_deps = [
         "fbsource//third-party/nlohmann-json:nlohmann-json",
+        "fbsource//third-party/pcre2:pcre2-8",
         "fbsource//third-party/re2:re2",
     ],
     exported_external_deps = [
