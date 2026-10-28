@@ -13,7 +13,7 @@
 #include <pytorch/tokenizers/tokenizer.h>
 #include <memory>
 #include <vector>
-#include "sentencepiece_processor.h"
+#include "sentencepiece_processor.h" // @manual
 namespace tokenizers {
 
 class SPTokenizer : public Tokenizer {
