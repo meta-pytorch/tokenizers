@@ -126,3 +126,60 @@ TEST_F(RegexTest, ComplexPatternWithNegativeLookahead) {
       text.substr(matches[5].start, matches[5].end - matches[5].start),
       " test");
 }
+
+// A long text with many multi-byte characters gives the same matches as each
+// of its chunks on its own.
+TEST_F(RegexTest, Pcre2LongMultiByteText) {
+  const std::string pattern =
+      "(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+";
+  auto regex = TK_UNWRAP_THROW(create_regex(pattern));
+  EXPECT_NE(dynamic_cast<Pcre2Regex*>(regex.get()), nullptr);
+
+  const std::string chunk =
+      "Hello w\xC3\xB6rld, \xE4\xBD\xA0\xE5\xA5\xBD \xF0\x9F\x99\x82 it's 42\n";
+  const auto chunk_matches = regex->find_all(chunk);
+  ASSERT_FALSE(chunk_matches.empty());
+
+  constexpr size_t kRepeats = 1000;
+  std::string text;
+  for (size_t i = 0; i < kRepeats; ++i) {
+    text += chunk;
+  }
+  const auto matches = regex->find_all(text);
+  ASSERT_EQ(matches.size(), chunk_matches.size() * kRepeats);
+  for (size_t i = 0; i < matches.size(); ++i) {
+    const auto& expected = chunk_matches[i % chunk_matches.size()];
+    const size_t shift = (i / chunk_matches.size()) * chunk.size();
+    EXPECT_EQ(matches[i].start, expected.start + shift);
+    EXPECT_EQ(matches[i].end, expected.end + shift);
+  }
+}
+
+// After an empty match the next search has to start at the next character,
+// not inside a multi-byte one.
+TEST_F(RegexTest, Pcre2EmptyMatchBeforeMultiByteCharacter) {
+  Pcre2Regex regex;
+  ASSERT_EQ(regex.compile("x*"), Error::Ok);
+
+  // "\xC4\x85" is 2 bytes, "\xE4\xBD\xA0" 3 and "\xF0\x9F\x99\x82" 4.
+  const std::string text =
+      "\xC4\x85"
+      "b\xE4\xBD\xA0\xF0\x9F\x99\x82"
+      "c";
+  const auto matches = regex.find_all(text);
+  const std::vector<size_t> expected_starts = {0, 2, 3, 6, 10};
+  ASSERT_EQ(matches.size(), expected_starts.size());
+  for (size_t i = 0; i < matches.size(); ++i) {
+    EXPECT_EQ(matches[i].start, expected_starts[i]);
+    EXPECT_EQ(matches[i].end, expected_starts[i]);
+  }
+}
+
+// Later calls skip PCRE2's UTF-8 check, so the first call has to reject the
+// whole text when any part of it is invalid UTF-8, here a 3-byte character cut
+// off at the end, even though the text starts with valid matches.
+TEST_F(RegexTest, Pcre2InvalidUtf8AfterValidMatches) {
+  Pcre2Regex regex;
+  ASSERT_EQ(regex.compile("\\p{L}+| "), Error::Ok);
+  EXPECT_TRUE(regex.find_all("Hello w\xC3\xB6rld \xE4\xBD").empty());
+}

@@ -48,6 +48,8 @@ class Pcre2Regex : public IRegex {
 
  private:
   pcre2_code* regex_;
+  // Whether regex_ was compiled in UTF mode (see compile()).
+  bool utf_ = false;
 };
 
 } // namespace tokenizers
