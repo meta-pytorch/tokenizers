@@ -42,11 +42,13 @@ jobs:
       repository: meta-pytorch/tokenizers
       ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
       test-infra-repository: pytorch/test-infra
-      test-infra-ref: release/2.15
+      # Use final Python 3.15, avoiding the broken RC marker download (#9265).
+      test-infra-ref: b46669025788e540ed4ecc7c56cc52db343e284f
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       trigger-event: ${{ github.event_name }}
       package-name: pytorch_tokenizers
       runner-type: macos-14-xlarge
       setup-miniconda: true
       delocate-wheel: false
+      pre-script: .ci/scripts/wheel/pre_build_script.sh
       smoke-test-script: .ci/scripts/wheel/test_wheel.py
