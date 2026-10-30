@@ -336,7 +336,7 @@ Result<std::string> BPETokenizerBase::decode(
   } else { // Not a regular token, check if it's a special token
     auto special_token_result = special_token_map_->tryGetString(cur);
     if (special_token_result) { // It's a special token
-      if (skip_special_tokens) {
+      if (skip_special_tokens && is_special_token_id_(cur)) {
         return std::string(""); // Skip it
       }
       token_bytes = *special_token_result; // Don't skip, use its string
