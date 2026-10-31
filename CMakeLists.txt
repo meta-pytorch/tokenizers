@@ -45,6 +45,9 @@ endif()
 include(CMakePackageConfigHelpers)
 include(Utils.cmake)
 
+# Installation rules
+include(GNUInstallDirs)
+
 # Ignore weak attribute warning
 if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-attributes")
@@ -189,9 +192,6 @@ if(TOKENIZERS_BUILD_PYTHON)
   # Don't install the Python extension here - let setuptools handle it
   # The setup.py will copy the built extension to the appropriate location
 endif()
-
-# Installation rules
-include(GNUInstallDirs)
 
 if(NOT TOKENIZERS_BUILD_PYTHON)
   # Install the library and its dependencies
