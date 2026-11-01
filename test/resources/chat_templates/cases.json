@@ -1,0 +1,744 @@
+[
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello Café 世界 👋"
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {},
+    "expected": "<|im_start|>user\nHello Café 世界 👋<|im_end|>\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello Café 世界 👋"
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {
+      "enable_thinking": true
+    },
+    "expected": "<|im_start|>user\nHello Café 世界 👋<|im_end|>\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello Café 世界 👋"
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {
+      "enable_thinking": false
+    },
+    "expected": "<|im_start|>user\nHello Café 世界 👋<|im_end|>\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello Café 世界 👋"
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {},
+    "expected": "<|im_start|>user\nHello Café 世界 👋<|im_end|>\n<|im_start|>assistant\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello Café 世界 👋"
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {
+      "enable_thinking": true
+    },
+    "expected": "<|im_start|>user\nHello Café 世界 👋<|im_end|>\n<|im_start|>assistant\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello Café 世界 👋"
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {
+      "enable_thinking": false
+    },
+    "expected": "<|im_start|>user\nHello Café 世界 👋<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Be brief."
+      },
+      {
+        "role": "user",
+        "content": "What is 2+2?"
+      },
+      {
+        "role": "assistant",
+        "content": "4."
+      },
+      {
+        "role": "user",
+        "content": "Why?"
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {},
+    "expected": "<|im_start|>system\nBe brief.<|im_end|>\n<|im_start|>user\nWhat is 2+2?<|im_end|>\n<|im_start|>assistant\n4.<|im_end|>\n<|im_start|>user\nWhy?<|im_end|>\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Be brief."
+      },
+      {
+        "role": "user",
+        "content": "What is 2+2?"
+      },
+      {
+        "role": "assistant",
+        "content": "4."
+      },
+      {
+        "role": "user",
+        "content": "Why?"
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {
+      "enable_thinking": true
+    },
+    "expected": "<|im_start|>system\nBe brief.<|im_end|>\n<|im_start|>user\nWhat is 2+2?<|im_end|>\n<|im_start|>assistant\n4.<|im_end|>\n<|im_start|>user\nWhy?<|im_end|>\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Be brief."
+      },
+      {
+        "role": "user",
+        "content": "What is 2+2?"
+      },
+      {
+        "role": "assistant",
+        "content": "4."
+      },
+      {
+        "role": "user",
+        "content": "Why?"
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {
+      "enable_thinking": false
+    },
+    "expected": "<|im_start|>system\nBe brief.<|im_end|>\n<|im_start|>user\nWhat is 2+2?<|im_end|>\n<|im_start|>assistant\n4.<|im_end|>\n<|im_start|>user\nWhy?<|im_end|>\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Be brief."
+      },
+      {
+        "role": "user",
+        "content": "What is 2+2?"
+      },
+      {
+        "role": "assistant",
+        "content": "4."
+      },
+      {
+        "role": "user",
+        "content": "Why?"
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {},
+    "expected": "<|im_start|>system\nBe brief.<|im_end|>\n<|im_start|>user\nWhat is 2+2?<|im_end|>\n<|im_start|>assistant\n4.<|im_end|>\n<|im_start|>user\nWhy?<|im_end|>\n<|im_start|>assistant\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Be brief."
+      },
+      {
+        "role": "user",
+        "content": "What is 2+2?"
+      },
+      {
+        "role": "assistant",
+        "content": "4."
+      },
+      {
+        "role": "user",
+        "content": "Why?"
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {
+      "enable_thinking": true
+    },
+    "expected": "<|im_start|>system\nBe brief.<|im_end|>\n<|im_start|>user\nWhat is 2+2?<|im_end|>\n<|im_start|>assistant\n4.<|im_end|>\n<|im_start|>user\nWhy?<|im_end|>\n<|im_start|>assistant\n"
+  },
+  {
+    "model": "qwen3",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Be brief."
+      },
+      {
+        "role": "user",
+        "content": "What is 2+2?"
+      },
+      {
+        "role": "assistant",
+        "content": "4."
+      },
+      {
+        "role": "user",
+        "content": "Why?"
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {
+      "enable_thinking": false
+    },
+    "expected": "<|im_start|>system\nBe brief.<|im_end|>\n<|im_start|>user\nWhat is 2+2?<|im_end|>\n<|im_start|>assistant\n4.<|im_end|>\n<|im_start|>user\nWhy?<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello Café 世界 👋"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {},
+    "expected": "<|im_start|>User: Hello Café 世界 👋<end_of_utterance>\n"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello Café 世界 👋"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {
+      "enable_thinking": true
+    },
+    "expected": "<|im_start|>User: Hello Café 世界 👋<end_of_utterance>\n"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello Café 世界 👋"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {
+      "enable_thinking": false
+    },
+    "expected": "<|im_start|>User: Hello Café 世界 👋<end_of_utterance>\n"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello Café 世界 👋"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {},
+    "expected": "<|im_start|>User: Hello Café 世界 👋<end_of_utterance>\nAssistant:"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello Café 世界 👋"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {
+      "enable_thinking": true
+    },
+    "expected": "<|im_start|>User: Hello Café 世界 👋<end_of_utterance>\nAssistant:"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Hello Café 世界 👋"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {
+      "enable_thinking": false
+    },
+    "expected": "<|im_start|>User: Hello Café 世界 👋<end_of_utterance>\nAssistant:"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          {
+            "type": "text",
+            "text": "Be brief."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What is 2+2?"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "4."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Why?"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {},
+    "expected": "<|im_start|>System: Be brief.<end_of_utterance>\nUser: What is 2+2?<end_of_utterance>\nAssistant: 4.<end_of_utterance>\nUser: Why?<end_of_utterance>\n"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          {
+            "type": "text",
+            "text": "Be brief."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What is 2+2?"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "4."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Why?"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {
+      "enable_thinking": true
+    },
+    "expected": "<|im_start|>System: Be brief.<end_of_utterance>\nUser: What is 2+2?<end_of_utterance>\nAssistant: 4.<end_of_utterance>\nUser: Why?<end_of_utterance>\n"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          {
+            "type": "text",
+            "text": "Be brief."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What is 2+2?"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "4."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Why?"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {
+      "enable_thinking": false
+    },
+    "expected": "<|im_start|>System: Be brief.<end_of_utterance>\nUser: What is 2+2?<end_of_utterance>\nAssistant: 4.<end_of_utterance>\nUser: Why?<end_of_utterance>\n"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          {
+            "type": "text",
+            "text": "Be brief."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What is 2+2?"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "4."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Why?"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {},
+    "expected": "<|im_start|>System: Be brief.<end_of_utterance>\nUser: What is 2+2?<end_of_utterance>\nAssistant: 4.<end_of_utterance>\nUser: Why?<end_of_utterance>\nAssistant:"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          {
+            "type": "text",
+            "text": "Be brief."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What is 2+2?"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "4."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Why?"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {
+      "enable_thinking": true
+    },
+    "expected": "<|im_start|>System: Be brief.<end_of_utterance>\nUser: What is 2+2?<end_of_utterance>\nAssistant: 4.<end_of_utterance>\nUser: Why?<end_of_utterance>\nAssistant:"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          {
+            "type": "text",
+            "text": "Be brief."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What is 2+2?"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "4."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Why?"
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {
+      "enable_thinking": false
+    },
+    "expected": "<|im_start|>System: Be brief.<end_of_utterance>\nUser: What is 2+2?<end_of_utterance>\nAssistant: 4.<end_of_utterance>\nUser: Why?<end_of_utterance>\nAssistant:"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image"
+          },
+          {
+            "type": "text",
+            "text": "Describe this photo."
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {},
+    "expected": "<|im_start|>User:<image>Describe this photo.<end_of_utterance>\n"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image"
+          },
+          {
+            "type": "text",
+            "text": "Describe this photo."
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {
+      "enable_thinking": true
+    },
+    "expected": "<|im_start|>User:<image>Describe this photo.<end_of_utterance>\n"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image"
+          },
+          {
+            "type": "text",
+            "text": "Describe this photo."
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": false,
+    "kwargs": {
+      "enable_thinking": false
+    },
+    "expected": "<|im_start|>User:<image>Describe this photo.<end_of_utterance>\n"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image"
+          },
+          {
+            "type": "text",
+            "text": "Describe this photo."
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {},
+    "expected": "<|im_start|>User:<image>Describe this photo.<end_of_utterance>\nAssistant:"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image"
+          },
+          {
+            "type": "text",
+            "text": "Describe this photo."
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {
+      "enable_thinking": true
+    },
+    "expected": "<|im_start|>User:<image>Describe this photo.<end_of_utterance>\nAssistant:"
+  },
+  {
+    "model": "smolvlm",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "image"
+          },
+          {
+            "type": "text",
+            "text": "Describe this photo."
+          }
+        ]
+      }
+    ],
+    "add_generation_prompt": true,
+    "kwargs": {
+      "enable_thinking": false
+    },
+    "expected": "<|im_start|>User:<image>Describe this photo.<end_of_utterance>\nAssistant:"
+  }
+]

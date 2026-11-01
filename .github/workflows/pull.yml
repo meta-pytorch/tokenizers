@@ -24,7 +24,7 @@ jobs:
       timeout: 90
       script: |
         set -ex
-        cmake -DCMAKE_BUILD_TYPE=Debug test -Bbuild/test
+        cmake -DCMAKE_BUILD_TYPE=Debug -DTOKENIZERS_BUILD_CHAT_TEMPLATE=ON test -Bbuild/test
         cmake --build build/test -j9 --config Debug
         pushd build/test && ctest && popd
 
@@ -54,7 +54,7 @@ jobs:
           \$PSNativeCommandUseErrorActionPreference = \$true
 
           # Run C++ unit tests
-          cmake -DCMAKE_BUILD_TYPE=Debug test -Bbuild/test -T ClangCL
+          cmake -DCMAKE_BUILD_TYPE=Debug -DTOKENIZERS_BUILD_CHAT_TEMPLATE=ON test -Bbuild/test -T ClangCL
           cmake --build build/test -j9 --config Debug
           if (\$LASTEXITCODE -ne 0) {
             Write-Host "Build was not successful. Exit code: \$LASTEXITCODE."
