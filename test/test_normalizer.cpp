@@ -269,3 +269,37 @@ TEST(NormalizerTest, NormalizerConfigNFC) {
   auto normalizer = config.create();
   EXPECT_EQ(normalizer->normalize("Cafe\u0301"), "Caf\u00e9");
 }
+
+TEST(NormalizerTest, LowercaseNormalizerAscii) {
+  LowercaseNormalizer normalizer;
+  EXPECT_EQ(
+      normalizer.normalize("A Photo of a CAT 42!"), "a photo of a cat 42!");
+}
+
+TEST(NormalizerTest, LowercaseNormalizerUnicode) {
+  LowercaseNormalizer normalizer;
+  EXPECT_EQ(
+      normalizer.normalize("\u00dcN\u00cfCODE \u03a3\u0391\u03a3"),
+      "\u00fcn\u00efcode \u03c3\u03b1\u03c3");
+  EXPECT_EQ(normalizer.normalize("STRA\u00dfE"), "stra\u00dfe");
+}
+
+TEST(NormalizerTest, LowercaseNormalizerDottedCapitalI) {
+  LowercaseNormalizer normalizer;
+  EXPECT_EQ(normalizer.normalize("\u0130stanbul"), "i\u0307stanbul");
+}
+
+TEST(NormalizerTest, NormalizerConfigLowercase) {
+  NormalizerConfig config;
+  config.parse_json(
+      nlohmann::json{
+          {"type", "Sequence"},
+          {"normalizers",
+           {{{"type", "NFC"}},
+            {{"type", "Replace"},
+             {"pattern", {{"Regex", "\\s+"}}},
+             {"content", " "}},
+            {{"type", "Lowercase"}}}}});
+  auto normalizer = config.create();
+  EXPECT_EQ(normalizer->normalize("A  Photo\tOF a CAT"), "a photo of a cat");
+}

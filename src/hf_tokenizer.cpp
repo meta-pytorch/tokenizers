@@ -263,7 +263,9 @@ Error HFTokenizer::_encode(
   }
 
   for (const auto& piece : pieces) {
-    const auto result = token_map_->tryGetInteger(piece);
+    const auto result = end_of_word_suffix_.empty()
+        ? token_map_->tryGetInteger(piece)
+        : token_map_->tryGetInteger(piece + end_of_word_suffix_);
     if (result) {
       ret.push_back(*result);
       last_piece_token_len = 1;
@@ -303,7 +305,9 @@ Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
     const std::string& piece,
     const detail::TokenMap& token_map) const {
   if (piece.size() == 1) {
-    const auto result = token_map.tryGetInteger(piece);
+    const auto result = end_of_word_suffix_.empty()
+        ? token_map.tryGetInteger(piece)
+        : token_map.tryGetInteger(piece + end_of_word_suffix_);
     if (result) {
       return std::vector<uint64_t>(1, *result);
     }
@@ -335,7 +339,9 @@ Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
       token_map,
       [this, &piece, &token_map](uint64_t start, uint64_t stop) {
         std::string_view key(piece.data() + start, stop - start);
-        const auto result = token_map.tryGetInteger(key);
+        const auto result = stop < piece.size() || end_of_word_suffix_.empty()
+            ? token_map.tryGetInteger(key)
+            : token_map.tryGetInteger(std::string(key) + end_of_word_suffix_);
         if (result) {
           return *result;
         }
@@ -576,6 +582,11 @@ Error HFTokenizer::setup_special_token_ids(
     const auto& model_json = parsed_json.at("model");
     if (model_json.contains("byte_fallback")) {
       byte_fallback_ = model_json.at("byte_fallback").get<bool>();
+    }
+    if (model_json.contains("end_of_word_suffix") &&
+        !model_json.at("end_of_word_suffix").is_null()) {
+      end_of_word_suffix_ =
+          model_json.at("end_of_word_suffix").get<std::string>();
     }
     if (model_json.contains("unk_token")) {
       if (model_json.at("unk_token").is_null()) {

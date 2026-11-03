@@ -488,6 +488,37 @@ TEST(HFTokenizerTest, MergeAllWithByteFallback) {
   EXPECT_EQ(result.get(), expected);
 }
 
+// end_of_word_suffix marks the last symbol of every word, so word-final pieces
+// map to different ids than word-internal ones.
+TEST(HFTokenizerTest, EndOfWordSuffix) {
+  TempFile tmpfile(R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {"c": 0, "a": 1, "t": 2, "a</w>": 3, "t</w>": 4, "ca": 5,
+                "at</w>": 6, "cat": 7, "cat</w>": 8},
+      "merges": ["c a", "a t</w>", "ca t</w>"],
+      "end_of_word_suffix": "</w>"
+    },
+    "normalizer": null,
+    "pre_tokenizer": {
+      "type": "Split",
+      "pattern": {"Regex": "\\S+"},
+      "behavior": "Removed",
+      "invert": true
+    },
+    "added_tokens": []
+  })");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto result = tokenizer.encode("cat a tat cata", 0, 0);
+  ASSERT_TRUE(result.ok());
+  // cat -> cat</w>; a -> a</w>; tat -> t at</w>; cata -> ca t a</w>.
+  // Matches the HuggingFace tokenizers output for the same tokenizer.json.
+  std::vector<uint64_t> expected = {8, 3, 2, 6, 5, 2, 3};
+  EXPECT_EQ(result.get(), expected);
+}
+
 TEST(HFTokenizerTest, TestByteFallback) {
   // Create a minimal tokenizer with byte fallback enabled
   // Vocab: "a": 0, "<0x62>": 1 (for 'b')

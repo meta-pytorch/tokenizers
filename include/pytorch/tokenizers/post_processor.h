@@ -111,6 +111,32 @@ class TemplateProcessing : public PostProcessor {
       bool add_special_tokens) const;
 };
 
+// -- RobertaProcessing --------------------------------------------------------
+// Single: cls $A sep. Pair: cls $A sep sep $B sep.
+// trim_offsets and add_prefix_space only affect offsets, which are not tracked.
+// CITE:
+// https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/processors/roberta.rs
+
+class RobertaProcessing : public PostProcessor {
+ public:
+  RobertaProcessing(uint64_t cls_id, uint64_t sep_id);
+
+  size_t added_tokens(bool is_pair) const override;
+
+  std::vector<uint64_t> process(
+      const std::vector<uint64_t>& tokens,
+      bool add_special_tokens = true) const override;
+
+  std::vector<uint64_t> process(
+      const std::vector<uint64_t>& tokens_a,
+      const std::vector<uint64_t>& tokens_b,
+      bool add_special_tokens = true) const override;
+
+ private:
+  uint64_t cls_id_;
+  uint64_t sep_id_;
+};
+
 // -- SequenceProcessing -------------------------------------------------------
 class Sequence : public PostProcessor {
  public:
@@ -142,7 +168,7 @@ class PostProcessorConfig {
   Template pair;
   std::map<std::string, SpecialToken> special_tokens;
 
-  // Bert / Roberta (unused params in no-op, but kept for parsing logic)
+  // Bert / Roberta
   std::pair<std::string, uint64_t> sep;
   std::pair<std::string, uint64_t> cls;
   bool trim_offsets = true;
@@ -160,9 +186,6 @@ class PostProcessorConfig {
 
 // -- BertProcessing -----------------------------------------------------------
 // TODO: Implement BertProcessor
-
-// -- RobertaProcessing --------------------------------------------------------
-// TODO: Implement RobertaProcessor
 
 // -- ByteLevel
 // ----------------------------------------------------------------
