@@ -1,0 +1,35 @@
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  lintrunner:
+    name: lintrunner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install lintrunner dependencies
+        run: pip install -r requirements-lintrunner.txt
+
+      - name: Initialize lintrunner
+        run: lintrunner init
+
+      - name: Run lintrunner
+        run: lintrunner --force-color --all-files

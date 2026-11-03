@@ -39,3 +39,8 @@ pip-out/
 *.so
 *.dylib
 *.pyd
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
