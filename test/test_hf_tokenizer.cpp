@@ -246,6 +246,50 @@ TEST(HFTokenizerTest, TestDecode) {
     EXPECT_FALSE(result.get().empty());
   }
 }
+TEST(HFTokenizerTest, TestStreamingDecodeMatchesWholeDecode) {
+  // SentencePiece-style decoder (Llama, Mistral, EuroLLM): Fuse + Strip only
+  // remove the space at the start of the whole text.
+  const char* json = R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {"▁Hello": 1, "▁world": 2, "!": 3},
+      "merges": []
+    },
+    "normalizer": null,
+    "pre_tokenizer": null,
+    "post_processor": null,
+    "decoder": {
+      "type": "Sequence",
+      "decoders": [
+        {"type": "Replace", "pattern": {"String": "▁"}, "content": " "},
+        {"type": "Fuse"},
+        {"type": "Strip", "content": " ", "start": 1, "stop": 0}
+      ]
+    },
+    "added_tokens": [
+      {"id": 0, "content": "<s>", "single_word": false, "lstrip": false,
+       "rstrip": false, "normalized": false, "special": true}
+    ]
+  })";
+
+  TempFile tmpfile(json);
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+
+  const std::vector<uint64_t> tokens = {0, 1, 2, 3}; // <s> ▁Hello ▁world !
+  std::string streamed;
+  for (size_t i = 1; i < tokens.size(); ++i) {
+    auto piece = tokenizer.decode(tokens[i - 1], tokens[i], true);
+    ASSERT_TRUE(piece.ok());
+    streamed += piece.get();
+  }
+  auto whole = tokenizer.decode(tokens, true);
+  ASSERT_TRUE(whole.ok());
+  EXPECT_EQ(whole.get(), "Hello world!");
+  EXPECT_EQ(streamed, whole.get());
+}
+
 // Test that BPE merges are correctly parsed from legacy string format ("a b")
 // This is the standard HuggingFace tokenizer.json format
 TEST(HFTokenizerTest, TestBPEMergeLegacyFormat) {

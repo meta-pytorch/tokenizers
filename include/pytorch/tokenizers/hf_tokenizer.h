@@ -90,7 +90,14 @@ class HFTokenizer : public detail::BPETokenizerBase {
       int8_t bos = 0,
       int8_t eos = 0) const override;
 
-  using BPETokenizerBase::decode;
+  /**
+   * Decodes `token` as the continuation of `prev_token`, so that streaming a
+   * sequence one token at a time yields the same text as decoding it whole.
+   */
+  Result<std::string> decode(
+      uint64_t prev_token,
+      uint64_t token,
+      bool skip_special_tokens = false) const override;
 
   Result<std::string> decode(
       const std::vector<uint64_t>& tokens,
