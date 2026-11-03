@@ -1,0 +1,57 @@
+[package]
+name = "pytorch-tokenizers-hf-ffi"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "tokenizers_hf_ffi"
+crate-type = ["staticlib"]
+
+[features]
+default = ["json"]
+json = [
+  "dep:serde_json",
+  "dep:tk-convert-json",
+  "dep:tk-encode-json",
+  "dep:tk-serialize-json",
+]
+tok = ["dep:tk-encode-tok", "dep:tk-serialization"]
+
+[dependencies]
+serde_json = { version = "1.0", optional = true }
+tk-convert-json = { package = "tk-convert", version = "=0.1.0-rc.2", optional = true, default-features = false }
+tk-encode-json = { package = "tk-encode", version = "=0.1.0-rc.2", optional = true, default-features = false, features = [
+  "bpe",
+  "fancy-regex",
+  "normalizers",
+  "unicode-scripts",
+  "unigram",
+  "wordlevel",
+  "wordpiece",
+] }
+tk-serialize-json = { package = "tk-serialize", version = "=0.1.0-rc.2", optional = true, default-features = false, features = [
+  "bpe",
+  "deserialize",
+  "fancy-regex",
+  "normalizers",
+  "unicode-scripts",
+  "unigram",
+  "wordlevel",
+  "wordpiece",
+] }
+tk-encode-tok = { package = "tk-encode", git = "https://github.com/huggingface/tokenizers", rev = "054bdf469b2cf416c0da953923d88c82f4d765b5", optional = true, default-features = false }
+tk-serialization = { git = "https://github.com/huggingface/tokenizers", rev = "054bdf469b2cf416c0da953923d88c82f4d765b5", optional = true }
+
+[dev-dependencies]
+tk-serialization = { git = "https://github.com/huggingface/tokenizers", rev = "054bdf469b2cf416c0da953923d88c82f4d765b5", features = ["write"] }
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+strip = true
+
+[profile.minsize]
+inherits = "release"
+opt-level = "z"
+panic = "abort"
