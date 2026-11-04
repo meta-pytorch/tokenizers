@@ -268,6 +268,14 @@ TEST(StripTokenDecoderTest, TestUnicodeContent) {
   EXPECT_EQ(decoder2.decode(tokens), expected);
 }
 
+TEST(StripTokenDecoderTest, TestIncompleteUtf8) {
+  // Bytes of "😀" (F0 9F 98 80) split across tokens are kept as they are.
+  StripTokenDecoder decoder(" ", 1, 1);
+  std::vector<std::string> tokens = {"\xF0", " \x9F\x98 ", "\x80 "};
+  std::vector<std::string> expected = {"\xF0", "\x9F\x98", "\x80"};
+  EXPECT_EQ(decoder.decode(tokens), expected);
+}
+
 TEST(TokenDecoderConfigTest, TestStripConfig) {
   nlohmann::json config = {
       {"type", "Strip"}, {"content", "_"}, {"start", 1}, {"stop", 0}};
@@ -284,6 +292,28 @@ TEST(TokenDecoderConfigTest, TestStripConfig) {
   std::vector<std::string> tokens = {"_Hello", "__World"};
   std::vector<std::string> expected = {"Hello", "_World"};
   EXPECT_EQ(decoder->decode(tokens), expected);
+}
+
+TEST(TokenDecoderConfigTest, TestByteFallbackStripSequenceSplitEmoji) {
+  // The decoder of Llama-2 / Mistral-v0.1 style tokenizer.json files.
+  nlohmann::json config = {
+      {"type", "Sequence"},
+      {"decoders",
+       {{{"type", "Replace"}, {"pattern", {{"String", "▁"}}}, {"content", " "}},
+        {{"type", "ByteFallback"}},
+        {{"type", "Fuse"}},
+        {{"type", "Strip"}, {"content", " "}, {"start", 1}, {"stop", 0}}}}};
+
+  TokenDecoderConfig decoder_config;
+  decoder_config.parse_json(config);
+  auto decoder = decoder_config.create();
+
+  // Decode one token at a time, as streaming generation does.
+  std::string text;
+  for (const auto& token : {"<0xF0>", "<0x9F>", "<0x98>", "<0x80>"}) {
+    text += decoder->decode(std::vector<std::string>{token})[0];
+  }
+  EXPECT_EQ(text, "😀");
 }
 
 } // namespace tokenizers

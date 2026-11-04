@@ -11,6 +11,8 @@
 
 #include <pytorch/tokenizers/log.h>
 
+#include <string_view>
+
 // Third Party
 #include <nlohmann/json.hpp>
 
@@ -190,7 +192,7 @@ StripTokenDecoder::StripTokenDecoder(
     const std::string& content_str,
     size_t start,
     size_t stop)
-    : start_(start), stop_(stop) {
+    : content_(content_str), start_(start), stop_(stop) {
   if (content_str.length() == 0) {
     throw std::runtime_error("Strip decoder 'content' cannot be empty.");
   }
@@ -199,7 +201,6 @@ StripTokenDecoder::StripTokenDecoder(
     throw std::runtime_error(
         "Strip decoder 'content' must represent a single Unicode character.");
   }
-  content_ = cpts[0];
 }
 
 std::vector<std::string> StripTokenDecoder::decode(
@@ -207,43 +208,21 @@ std::vector<std::string> StripTokenDecoder::decode(
   std::vector<std::string> decoded_tokens;
   decoded_tokens.reserve(tokens.size());
 
+  // Match content_ on bytes, not code points: after ByteFallback a token can be
+  // an incomplete UTF-8 sequence, e.g. the first byte of an emoji.
+  const size_t n = content_.size();
   for (const auto& token : tokens) {
-    const auto cpts = unicode_cpts_from_utf8(token); // Convert to code points
-    const size_t total_cpts = cpts.size();
-
-    size_t start_cut = 0;
-    // Strip from start
-    // Iterate over code points up to start_ or the size of cpts
-    for (size_t i = 0; i < start_ && i < total_cpts; ++i) {
-      if (cpts[i] == content_) {
-        start_cut = i + 1;
-      } else {
-        break; // Stop stripping if a non-content char is found
-      }
+    std::string_view rest(token);
+    for (size_t i = 0; i < start_ && rest.substr(0, n) == content_; ++i) {
+      rest.remove_prefix(n);
     }
-
-    size_t stop_cut = total_cpts;
-    // Strip from stop
-    // Iterate over code points up to stop_ or until stop_cut_cpts reaches
-    // start_cut_cpts
-    for (size_t i = 0; i < stop_ && stop_cut > start_cut; ++i) {
-      size_t index = total_cpts - 1 - i;
-      if (cpts[index] == content_) {
-        stop_cut = index;
-      } else {
-        break; // Stop stripping if a non-content char is found
+    for (size_t i = 0; i < stop_ && rest.size() >= n; ++i) {
+      if (rest.substr(rest.size() - n) != content_) {
+        break;
       }
+      rest.remove_suffix(n);
     }
-
-    if (start_cut >= stop_cut) {
-      decoded_tokens.push_back("");
-    } else {
-      std::string new_token_str;
-      for (size_t i = start_cut; i < stop_cut; ++i) {
-        new_token_str += unicode_cpt_to_utf8(cpts[i]);
-      }
-      decoded_tokens.push_back(new_token_str);
-    }
+    decoded_tokens.emplace_back(rest);
   }
   return decoded_tokens;
 }
