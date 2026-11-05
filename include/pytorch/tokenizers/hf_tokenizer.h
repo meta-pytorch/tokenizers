@@ -15,6 +15,7 @@
 // Standard
 #include <cstdint>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 // Local
@@ -136,6 +137,13 @@ class HFTokenizer : public detail::BPETokenizerBase {
   PreTokenizer::Ptr _pretokenizer;
   PostProcessor::Ptr _postprocessor;
   TokenDecoder::Ptr _decoder;
+
+  // Added-token semantics: only added tokens with "special": true are skipped
+  // by decode(skip_special_tokens=true) and removed from the BPE vocab.
+  bool is_special_token_id_(uint64_t token) const override {
+    return special_token_ids_.count(token) > 0;
+  }
+  std::unordered_set<uint64_t> special_token_ids_;
 
   std::unique_ptr<detail::MergeMap> merge_map_;
   bool byte_fallback_ = false;

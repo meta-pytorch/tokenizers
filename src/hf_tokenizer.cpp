@@ -171,7 +171,14 @@ Error HFTokenizer::load(const std::string& path) {
   TK_CHECK_OK_OR_RETURN_ERROR(parse_special_tokens(parsed_json));
   TK_CHECK_OK_OR_RETURN_ERROR(parse_tokens(parsed_json));
 
-  vocab_size_ = token_map_->size() + special_token_map_->size();
+  // Count distinct ids: non-special added tokens may also be in the vocab.
+  vocab_size_ = token_map_->size();
+  for (size_t i = 0; i < special_token_map_->size(); ++i) {
+    const auto& [_, id] = special_token_map_->getElement(i);
+    if (!token_map_->tryGetString(id)) {
+      ++vocab_size_;
+    }
+  }
 
   TK_CHECK_OK_OR_RETURN_ERROR(setup_normalizer(parsed_json));
   TK_CHECK_OK_OR_RETURN_ERROR(setup_pretokenizer(parsed_json));
@@ -221,8 +228,8 @@ Result<std::string> HFTokenizer::decode(
       token_bytes = *regular_token_result;
     } else { // Not a regular token, check if it's a special token
       auto special_token_result = special_token_map_->tryGetString(token);
-      if (special_token_result) { // It's a special token
-        if (skip_special_tokens) {
+      if (special_token_result) { // It's an added token
+        if (skip_special_tokens && is_special_token_id_(token)) {
           continue;
         }
         token_bytes = *special_token_result; // Don't skip, use its string
@@ -425,6 +432,16 @@ Error HFTokenizer::parse_special_tokens(const json& parsed_json) {
     }
     special_token_regex_ = std::move(*special_token_regex_result);
     special_token_map_.emplace(std::move(special_token_map));
+
+    // HF added tokens may be non-special (e.g. Qwen's <think>/<tool_call>,
+    // Gemma's whitespace-run tokens). Missing "special" keeps the old
+    // behavior of treating the token as special.
+    special_token_ids_.clear();
+    for (const auto& added : special_tokens) {
+      if (added.value("special", true)) {
+        special_token_ids_.insert(added.at("id").get<uint64_t>());
+      }
+    }
   } catch (const std::exception& e) {
     TK_LOG(Info, "Could not parse special tokens: %s", e.what());
     return Error::LoadFailure;
@@ -439,7 +456,9 @@ Error HFTokenizer::parse_tokens(const json& parsed_json) {
     for (const auto& entry : vocab.items()) {
       const std::string token = entry.key();
       const uint64_t token_id = entry.value();
-      if (!special_token_map_->tryGetString(token_id)) {
+      // Keep vocab entries that are also non-special added tokens so BPE
+      // merges can still produce them (HF keeps them in the model vocab).
+      if (!special_token_ids_.count(token_id)) {
         token_pairs.emplace_back(token, token_id);
       }
     }
