@@ -488,6 +488,180 @@ TEST(HFTokenizerTest, MergeAllWithByteFallback) {
   EXPECT_EQ(result.get(), expected);
 }
 
+// end_of_word_suffix marks the last symbol of every word, so word-final pieces
+// map to different ids than word-internal ones.
+TEST(HFTokenizerTest, EndOfWordSuffix) {
+  TempFile tmpfile(R"({
+    "version": "1.0",
+    "model": {
+      "type": "BPE",
+      "vocab": {"c": 0, "a": 1, "t": 2, "a</w>": 3, "t</w>": 4, "ca": 5,
+                "at</w>": 6, "cat": 7, "cat</w>": 8},
+      "merges": ["c a", "a t</w>", "ca t</w>"],
+      "end_of_word_suffix": "</w>"
+    },
+    "normalizer": null,
+    "pre_tokenizer": {
+      "type": "Split",
+      "pattern": {"Regex": "\\S+"},
+      "behavior": "Removed",
+      "invert": true
+    },
+    "added_tokens": []
+  })");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto result = tokenizer.encode("cat a tat cata", 0, 0);
+  ASSERT_TRUE(result.ok());
+  // cat -> cat</w>; a -> a</w>; tat -> t at</w>; cata -> ca t a</w>.
+  // Matches the HuggingFace tokenizers output for the same tokenizer.json.
+  std::vector<uint64_t> expected = {8, 3, 2, 6, 5, 2, 3};
+  EXPECT_EQ(result.get(), expected);
+}
+
+// Loading a tokenizer without a suffix after one with a suffix must drop it.
+TEST(HFTokenizerTest, EndOfWordSuffixDoesNotSurviveReload) {
+  TempFile with_suffix(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"a</w>":1},"merges":[],"end_of_word_suffix":"</w>"},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  TempFile without_suffix(
+      merge_tokenizer_json(R"({"a":0,"aa":1})", R"(["a a"])"));
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(with_suffix.path()), Error::Ok);
+  ASSERT_EQ(tokenizer.load(without_suffix.path()), Error::Ok);
+  auto result = tokenizer.encode("aaa", 0, 0);
+  ASSERT_TRUE(result.ok());
+  std::vector<uint64_t> expected = {1, 0}; // aa, a
+  EXPECT_EQ(result.get(), expected);
+}
+
+// A word-final symbol falls back to the bytes of the symbol and its suffix,
+// all or nothing, as HuggingFace tokenizers does: here "b</w>" has no byte
+// tokens for "</w>", so "b" is dropped.
+TEST(HFTokenizerTest, EndOfWordSuffixWithPartialByteFallback) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"<0x62>":1},"merges":[],"end_of_word_suffix":"</w>",
+    "byte_fallback":true},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto ab = tokenizer.encode("ab", 0, 0);
+  ASSERT_TRUE(ab.ok());
+  EXPECT_EQ(ab.get(), (std::vector<uint64_t>{0}));
+  auto b = tokenizer.encode("b", 0, 0);
+  ASSERT_TRUE(b.ok());
+  EXPECT_TRUE(b.get().empty());
+}
+
+TEST(HFTokenizerTest, EndOfWordSuffixWithByteFallback) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"<0x62>":1,"<0x3C>":2,"<0x2F>":3,"<0x77>":4,"<0x3E>":5},
+    "merges":[],"end_of_word_suffix":"</w>","byte_fallback":true},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto ab = tokenizer.encode("ab", 0, 0);
+  ASSERT_TRUE(ab.ok());
+  EXPECT_EQ(ab.get(), (std::vector<uint64_t>{0, 1, 2, 3, 4, 5}));
+  auto b = tokenizer.encode("b", 0, 0);
+  ASSERT_TRUE(b.ok());
+  EXPECT_EQ(b.get(), (std::vector<uint64_t>{1, 2, 3, 4, 5}));
+}
+
+TEST(HFTokenizerTest, EndOfWordSuffixWithUnknownToken) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"<unk>":1},"merges":[],"end_of_word_suffix":"</w>",
+    "unk_token":"<unk>"},
+    "normalizer":null,"pre_tokenizer":null,
+    "added_tokens":[{"id":1,"content":"<unk>","special":true}]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto ab = tokenizer.encode("ab", 0, 0);
+  ASSERT_TRUE(ab.ok());
+  EXPECT_EQ(ab.get(), (std::vector<uint64_t>{0, 1}));
+  auto b = tokenizer.encode("b", 0, 0);
+  ASSERT_TRUE(b.ok());
+  EXPECT_EQ(b.get(), (std::vector<uint64_t>{1}));
+}
+
+// A word is merged by rank even when it is whole in the vocabulary: b+c</w>
+// has the lowest rank, so "abc" becomes a + bc</w>, not abc</w>.
+TEST(HFTokenizerTest, MergesTakePriorityOverWholeWords) {
+  TempFile with_suffix(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"b":1,"c</w>":2,"ab":3,"bc</w>":4,"abc</w>":5},
+    "merges":["b c</w>","a b","ab c</w>"],"end_of_word_suffix":"</w>"},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  TempFile without_suffix(merge_tokenizer_json(
+      R"({"a":0,"b":1,"c":2,"ab":3,"bc":4,"abc":5})",
+      R"(["b c","a b","ab c"])"));
+  for (const auto* tmpfile : {&with_suffix, &without_suffix}) {
+    HFTokenizer tokenizer;
+    ASSERT_EQ(tokenizer.load(tmpfile->path()), Error::Ok);
+    auto result = tokenizer.encode("abc", 0, 0);
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(result.get(), (std::vector<uint64_t>{0, 4}));
+  }
+}
+
+// With ignore_merges, a word found whole in the vocabulary is one token.
+TEST(HFTokenizerTest, IgnoreMergesUsesWholeWords) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"b":1,"c":2,"ab":3,"bc":4,"abc":5},
+    "merges":["b c","a b","ab c"],"ignore_merges":true},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto result = tokenizer.encode("abc", 0, 0);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(result.get(), (std::vector<uint64_t>{5}));
+}
+
+// continuing_subword_prefix marks every symbol but the first of a word, and a
+// merge drops the prefix of its second part: a + ##b -> ab.
+TEST(HFTokenizerTest, ContinuingSubwordPrefix) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"##b":1,"ab":2,"##c</w>":3},"merges":["a ##b"],
+    "continuing_subword_prefix":"##","end_of_word_suffix":"</w>"},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto result = tokenizer.encode("abc", 0, 0);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(result.get(), (std::vector<uint64_t>{2, 3}));
+}
+
+// Without byte fallback or an unknown token, a symbol missing from the
+// vocabulary is dropped and the rest of the word is kept.
+TEST(HFTokenizerTest, MissingSymbolsAreDropped) {
+  TempFile with_suffix(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0},"merges":[],"end_of_word_suffix":"</w>"},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  TempFile without_suffix(merge_tokenizer_json(R"({"a":0})", "[]"));
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(with_suffix.path()), Error::Ok);
+  auto a = tokenizer.encode("a", 0, 0);
+  ASSERT_TRUE(a.ok());
+  EXPECT_TRUE(a.get().empty());
+  ASSERT_EQ(tokenizer.load(without_suffix.path()), Error::Ok);
+  auto bab = tokenizer.encode("bab", 0, 0);
+  ASSERT_TRUE(bab.ok());
+  EXPECT_EQ(bab.get(), (std::vector<uint64_t>{0}));
+}
+
+// Decoding is left to the configured decoder: here a Replace decoder turns
+// the suffix into a space, untrimmed.
+TEST(HFTokenizerTest, EndOfWordSuffixDecodesThroughDecoder) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a</w>":0,"a":1},"merges":[],"end_of_word_suffix":"</w>"},
+    "decoder":{"type":"Replace","pattern":{"String":"</w>"},"content":" "},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto decoded = tokenizer.decode(std::vector<uint64_t>{0});
+  ASSERT_TRUE(decoded.ok());
+  EXPECT_EQ(decoded.get(), "a ");
+}
+
 TEST(HFTokenizerTest, TestByteFallback) {
   // Create a minimal tokenizer with byte fallback enabled
   // Vocab: "a": 0, "<0x62>": 1 (for 'b')
@@ -589,7 +763,8 @@ TEST(HFTokenizerTest, TestNullPreTokenizer) {
         "hello": 0,
         "world": 1
       },
-      "merges": []
+      "merges": [],
+      "ignore_merges": true
     },
     "normalizer": null,
     "pre_tokenizer": null,

@@ -74,6 +74,9 @@ Normalizer::Ptr NormalizerConfig::create() const {
   if (type == "NFC") {
     return Normalizer::Ptr(new NFCNormalizer());
   }
+  if (type == "Lowercase") {
+    return Normalizer::Ptr(new LowercaseNormalizer());
+  }
   throw std::runtime_error("Unsupported Normalizer type: " + type);
 }
 
@@ -98,7 +101,7 @@ NormalizerConfig& NormalizerConfig::parse_json(const json& json_config) {
     for (const auto& entry : json_config.at("normalizers")) {
       normalizers->push_back(NormalizerConfig().parse_json(entry));
     }
-  } else if (type != "NFC") {
+  } else if (type != "NFC" && type != "Lowercase") {
     throw std::runtime_error("Unsupported Normalizer type: " + type);
   }
   return *this;
@@ -194,6 +197,22 @@ std::string NFCNormalizer::normalize(const std::string& input) const {
     result += unicode_cpt_to_utf8(cpt);
   }
 
+  return result;
+}
+
+// LowercaseNormalizer /////////////////////////////////////////////////////////
+
+std::string LowercaseNormalizer::normalize(const std::string& input) const {
+  std::string result;
+  result.reserve(input.size());
+  for (uint32_t cpt : unicode_cpts_from_utf8(input)) {
+    // U+0130 is the only codepoint whose lowercase mapping is two codepoints.
+    if (cpt == 0x0130) {
+      result += "i\u0307";
+    } else {
+      result += unicode_cpt_to_utf8(unicode_tolower(cpt));
+    }
+  }
   return result;
 }
 

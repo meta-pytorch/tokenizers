@@ -263,3 +263,44 @@ TEST(PostProcessorTest, NestedSequenceProcessing) {
   auto output = outer_seq->process(input);
   EXPECT_EQ(output, expected);
 }
+
+TEST(PostProcessorTest, RobertaProcessingSingleSequence) {
+  RobertaProcessing processor(/*cls_id=*/0, /*sep_id=*/2);
+  std::vector<uint64_t> expected = {0, 10, 20, 2};
+  EXPECT_EQ(processor.process({10, 20}), expected);
+  EXPECT_EQ(processor.added_tokens(/*is_pair=*/false), 2);
+}
+
+TEST(PostProcessorTest, RobertaProcessingPairSequence) {
+  RobertaProcessing processor(/*cls_id=*/0, /*sep_id=*/2);
+  std::vector<uint64_t> tokens_a = {10};
+  std::vector<uint64_t> tokens_b = {30};
+  std::vector<uint64_t> expected = {0, 10, 2, 2, 30, 2};
+  EXPECT_EQ(processor.process(tokens_a, tokens_b), expected);
+  EXPECT_EQ(processor.added_tokens(/*is_pair=*/true), 4);
+}
+
+TEST(PostProcessorTest, RobertaProcessingSkipSpecialTokens) {
+  RobertaProcessing processor(/*cls_id=*/0, /*sep_id=*/2);
+  std::vector<uint64_t> tokens_a = {10};
+  std::vector<uint64_t> tokens_b = {30};
+  std::vector<uint64_t> single = {10};
+  EXPECT_EQ(processor.process(tokens_a, false), single);
+  std::vector<uint64_t> pair = {10, 30};
+  EXPECT_EQ(processor.process(tokens_a, tokens_b, false), pair);
+}
+
+TEST(PostProcessorTest, RobertaProcessingConfigParsing) {
+  json config_json = {
+      {"type", "RobertaProcessing"},
+      {"sep", {"<|endoftext|>", 49407}},
+      {"cls", {"<|startoftext|>", 49406}},
+      {"trim_offsets", false},
+      {"add_prefix_space", false}};
+
+  auto processor = PostProcessorConfig().parse_json(config_json).create();
+  ASSERT_NE(processor, nullptr);
+
+  std::vector<uint64_t> expected = {49406, 320, 2368, 49407};
+  EXPECT_EQ(processor->process({320, 2368}), expected);
+}

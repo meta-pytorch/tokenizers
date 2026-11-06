@@ -10,6 +10,7 @@
 #include <pytorch/tokenizers/hf_tokenizer.h>
 
 // Standard
+#include <algorithm>
 #include <cinttypes>
 #include <filesystem>
 #include <fstream>
@@ -263,11 +264,12 @@ Error HFTokenizer::_encode(
   }
 
   for (const auto& piece : pieces) {
-    const auto result = token_map_->tryGetInteger(piece);
-    if (result) {
-      ret.push_back(*result);
-      last_piece_token_len = 1;
-      continue;
+    if (ignore_merges_) {
+      if (const auto result = token_map_->tryGetInteger(piece)) {
+        ret.push_back(*result);
+        last_piece_token_len = 1;
+        continue;
+      }
     }
     auto tokens_result = byte_pair_encode_(piece, *token_map_);
     if (!tokens_result.ok()) {
@@ -302,31 +304,6 @@ std::vector<std::string> HFTokenizer::_decode(
 Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
     const std::string& piece,
     const detail::TokenMap& token_map) const {
-  if (piece.size() == 1) {
-    const auto result = token_map.tryGetInteger(piece);
-    if (result) {
-      return std::vector<uint64_t>(1, *result);
-    }
-    if (byte_fallback_) {
-      char hex[7];
-      snprintf(
-          hex, sizeof(hex), "<0x%02X>", static_cast<unsigned char>(piece[0]));
-      const auto byte_result = token_map.tryGetInteger(std::string(hex));
-      if (byte_result) {
-        return std::vector<uint64_t>(1, *byte_result);
-      }
-      if (unk_token_is_configured_) {
-        return std::vector<uint64_t>(1, unk_tok_);
-      }
-      return Error::EncodeFailure;
-    } else {
-      if (unk_token_is_configured_) {
-        return std::vector<uint64_t>(1, unk_tok_);
-      }
-      return Error::EncodeFailure;
-    }
-  }
-
   // The HFTokenizer override of _byte_pair_merge merges via merge_map_ and
   // ignores the ranks argument, so token_map is passed only to satisfy the
   // signature.
@@ -334,8 +311,8 @@ Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
       piece,
       token_map,
       [this, &piece, &token_map](uint64_t start, uint64_t stop) {
-        std::string_view key(piece.data() + start, stop - start);
-        const auto result = token_map.tryGetInteger(key);
+        const auto result =
+            token_map.tryGetInteger(word_symbol(piece, start, stop));
         if (result) {
           return *result;
         }
@@ -347,6 +324,33 @@ Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
         }
         return UINT64_MAX - 1;
       });
+}
+
+std::string HFTokenizer::word_symbol(
+    const std::string& piece,
+    size_t start,
+    size_t stop) const {
+  std::string symbol = start == 0 ? "" : continuing_subword_prefix_;
+  symbol.append(piece, start, stop - start);
+  if (stop == piece.size()) {
+    symbol += end_of_word_suffix_;
+  }
+  return symbol;
+}
+
+std::optional<std::vector<uint64_t>> HFTokenizer::byte_tokens(
+    std::string_view symbol) const {
+  std::vector<uint64_t> tokens;
+  for (unsigned char byte : symbol) {
+    char hex[7];
+    snprintf(hex, sizeof(hex), "<0x%02X>", byte);
+    const auto token = token_map_->tryGetInteger(std::string(hex));
+    if (!token) {
+      return std::nullopt;
+    }
+    tokens.push_back(*token);
+  }
+  return tokens;
 }
 
 std::vector<uint64_t> HFTokenizer::_byte_pair_merge(
@@ -374,25 +378,17 @@ std::vector<uint64_t> HFTokenizer::_byte_pair_merge(
 
     uint64_t token_id = func(char_start, char_start + char_len);
     if (token_id == UINT64_MAX) { // This is the sentinel for byte_fallback
-      for (size_t j = 0; j < char_len; ++j) {
-        char hex[7];
-        snprintf(
-            hex,
-            sizeof(hex),
-            "<0x%02X>",
-            static_cast<unsigned char>(piece[char_start + j]));
-        const auto byte_result = token_map_->tryGetInteger(std::string(hex));
-        if (byte_result) {
-          word.add(*byte_result, 1);
-        } else if (unk_token_is_configured_) {
-          word.add(unk_tok_, 1);
-        } else {
-          return {}; // Unhandled byte fallback
+      const auto tokens =
+          byte_tokens(word_symbol(piece, char_start, char_start + char_len));
+      if (tokens) {
+        for (uint64_t token : *tokens) {
+          word.add(token, 1);
         }
+      } else if (unk_token_is_configured_) {
+        word.add(unk_tok_, char_len);
       }
-    } else if (token_id == (UINT64_MAX - 1)) { // This is the sentinel for a
-                                               // generic err
-      return {}; // Return empty on error
+    } else if (token_id == (UINT64_MAX - 1)) {
+      // A symbol missing from the vocabulary, with no fallback, is dropped.
     } else { // If it's not a sentinel, it's a valid token_id (could be 0, for
              // [UNK] oranother token)
       word.add(token_id, char_len); // Add any valid token_id
@@ -517,6 +513,12 @@ Error HFTokenizer::setup_decoder(const json& parsed_json) {
 Error HFTokenizer::parse_merges(const json& parsed_json) {
   try {
     const auto& merges = parsed_json.at("/model/merges"_json_pointer);
+    const auto& model_json = parsed_json.at("model");
+    const auto prefix = model_json.find("continuing_subword_prefix");
+    continuing_subword_prefix_ =
+        prefix != model_json.end() && prefix->is_string()
+        ? prefix->get<std::string>()
+        : "";
     std::vector<std::pair<std::string, std::string>> merge_pairs;
 
     for (const auto& merge : merges) {
@@ -546,7 +548,9 @@ Error HFTokenizer::parse_merges(const json& parsed_json) {
       auto first_id = token_map_->tryGetInteger(first);
       auto second_id = token_map_->tryGetInteger(second);
       if (first_id && second_id) {
-        std::string merged = first + second;
+        std::string merged = first +
+            second.substr(
+                std::min(continuing_subword_prefix_.size(), second.size()));
         auto merged_id = token_map_->tryGetInteger(merged);
         if (merged_id) {
           merge_map_->emplace(
@@ -571,11 +575,22 @@ Error HFTokenizer::setup_special_token_ids(
   std::string config_eos_token;
   std::string config_unk_token;
   bool explicit_unk_null = false;
+  end_of_word_suffix_.clear();
+  ignore_merges_ = false;
 
   try {
     const auto& model_json = parsed_json.at("model");
     if (model_json.contains("byte_fallback")) {
       byte_fallback_ = model_json.at("byte_fallback").get<bool>();
+    }
+    if (model_json.contains("ignore_merges") &&
+        model_json.at("ignore_merges").is_boolean()) {
+      ignore_merges_ = model_json.at("ignore_merges").get<bool>();
+    }
+    if (model_json.contains("end_of_word_suffix") &&
+        !model_json.at("end_of_word_suffix").is_null()) {
+      end_of_word_suffix_ =
+          model_json.at("end_of_word_suffix").get<std::string>();
     }
     if (model_json.contains("unk_token")) {
       if (model_json.at("unk_token").is_null()) {
