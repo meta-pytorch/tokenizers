@@ -517,14 +517,6 @@ TEST(HFTokenizerTest, EndOfWordSuffix) {
   // Matches the HuggingFace tokenizers output for the same tokenizer.json.
   std::vector<uint64_t> expected = {8, 3, 2, 6, 5, 2, 3};
   EXPECT_EQ(result.get(), expected);
-  // Decoding turns each suffix back into a space and trims the text.
-  auto decoded = tokenizer.decode(expected);
-  ASSERT_TRUE(decoded.ok());
-  EXPECT_EQ(decoded.get(), "cat a tat cata");
-  // Decoding one token keeps the space, so streamed words stay separated.
-  auto streamed = tokenizer.decode(expected[0], expected[0]);
-  ASSERT_TRUE(streamed.ok());
-  EXPECT_EQ(streamed.get(), "cat ");
 }
 
 // Loading a tokenizer without a suffix after one with a suffix must drop it.
@@ -590,6 +582,52 @@ TEST(HFTokenizerTest, EndOfWordSuffixWithUnknownToken) {
   auto b = tokenizer.encode("b", 0, 0);
   ASSERT_TRUE(b.ok());
   EXPECT_EQ(b.get(), (std::vector<uint64_t>{1}));
+}
+
+// A word is merged by rank even when it is whole in the vocabulary: b+c</w>
+// has the lowest rank, so "abc" becomes a + bc</w>, not abc</w>.
+TEST(HFTokenizerTest, MergesTakePriorityOverWholeWords) {
+  TempFile with_suffix(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"b":1,"c</w>":2,"ab":3,"bc</w>":4,"abc</w>":5},
+    "merges":["b c</w>","a b","ab c</w>"],"end_of_word_suffix":"</w>"},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  TempFile without_suffix(merge_tokenizer_json(
+      R"({"a":0,"b":1,"c":2,"ab":3,"bc":4,"abc":5})",
+      R"(["b c","a b","ab c"])"));
+  for (const auto* tmpfile : {&with_suffix, &without_suffix}) {
+    HFTokenizer tokenizer;
+    ASSERT_EQ(tokenizer.load(tmpfile->path()), Error::Ok);
+    auto result = tokenizer.encode("abc", 0, 0);
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(result.get(), (std::vector<uint64_t>{0, 4}));
+  }
+}
+
+// With ignore_merges, a word found whole in the vocabulary is one token.
+TEST(HFTokenizerTest, IgnoreMergesUsesWholeWords) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"b":1,"c":2,"ab":3,"bc":4,"abc":5},
+    "merges":["b c","a b","ab c"],"ignore_merges":true},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto result = tokenizer.encode("abc", 0, 0);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(result.get(), (std::vector<uint64_t>{5}));
+}
+
+// Decoding is left to the configured decoder: here a Replace decoder turns
+// the suffix into a space, untrimmed.
+TEST(HFTokenizerTest, EndOfWordSuffixDecodesThroughDecoder) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a</w>":0,"a":1},"merges":[],"end_of_word_suffix":"</w>"},
+    "decoder":{"type":"Replace","pattern":{"String":"</w>"},"content":" "},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto decoded = tokenizer.decode(std::vector<uint64_t>{0});
+  ASSERT_TRUE(decoded.ok());
+  EXPECT_EQ(decoded.get(), "a ");
 }
 
 TEST(HFTokenizerTest, TestByteFallback) {
@@ -693,7 +731,8 @@ TEST(HFTokenizerTest, TestNullPreTokenizer) {
         "hello": 0,
         "world": 1
       },
-      "merges": []
+      "merges": [],
+      "ignore_merges": true
     },
     "normalizer": null,
     "pre_tokenizer": null,

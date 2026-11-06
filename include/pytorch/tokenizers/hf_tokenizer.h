@@ -148,6 +148,8 @@ class HFTokenizer : public detail::BPETokenizerBase {
   std::unique_ptr<detail::MergeMap> merge_map_;
   // Appended to the last symbol of every pre-tokenized word, e.g. "</w>".
   std::string end_of_word_suffix_;
+  // Whether a word found whole in the vocabulary skips the merges.
+  bool ignore_merges_ = false;
   bool byte_fallback_ = false;
   bool unk_token_is_configured_ = false;
 };

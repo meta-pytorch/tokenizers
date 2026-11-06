@@ -127,21 +127,6 @@ std::string extract_token_string(const json& token_json) {
   }
   return "";
 };
-
-// Replaces every end-of-word suffix in text with a space.
-std::string spaced_word_ends(
-    const std::string& text,
-    const std::string& suffix) {
-  std::string spaced;
-  size_t start = 0;
-  for (size_t found = text.find(suffix); found != std::string::npos;
-       found = text.find(suffix, start)) {
-    spaced.append(text, start, found - start).push_back(' ');
-    start = found + suffix.size();
-  }
-  spaced.append(text, start, std::string::npos);
-  return spaced;
-}
 } // namespace
 
 // -------------------------public method start-------------------------------
@@ -256,17 +241,6 @@ Result<std::string> HFTokenizer::decode(
     result_str += p;
   }
 
-  if (!end_of_word_suffix_.empty()) {
-    // Word ends become spaces, and the text is trimmed.
-    const std::string spaced =
-        spaced_word_ends(result_str, end_of_word_suffix_);
-    const auto first = spaced.find_first_not_of(" \t\n\v\f\r");
-    const auto last = spaced.find_last_not_of(" \t\n\v\f\r");
-    result_str = first == std::string::npos
-        ? std::string()
-        : spaced.substr(first, last - first + 1);
-  }
-
   return result_str;
 }
 
@@ -289,13 +263,12 @@ Error HFTokenizer::_encode(
   }
 
   for (const auto& piece : pieces) {
-    const auto result = end_of_word_suffix_.empty()
-        ? token_map_->tryGetInteger(piece)
-        : token_map_->tryGetInteger(piece + end_of_word_suffix_);
-    if (result) {
-      ret.push_back(*result);
-      last_piece_token_len = 1;
-      continue;
+    if (ignore_merges_) {
+      if (const auto result = token_map_->tryGetInteger(piece)) {
+        ret.push_back(*result);
+        last_piece_token_len = 1;
+        continue;
+      }
     }
     auto tokens_result = byte_pair_encode_(piece, *token_map_);
     if (!tokens_result.ok()) {
@@ -309,18 +282,14 @@ Error HFTokenizer::_encode(
 }
 
 void HFTokenizer::_decode(const std::string& input, std::string& ret) const {
-  std::string decoded;
   if (_decoder) {
-    for (auto& piece : _decoder->decode({input})) {
-      decoded += piece;
+    auto result = _decoder->decode({input});
+    for (auto& piece : result) {
+      ret += piece;
     }
   } else {
-    decoded = input;
+    ret += input;
   }
-  // Untrimmed, so the words of successively decoded tokens stay separated.
-  ret += end_of_word_suffix_.empty()
-      ? decoded
-      : spaced_word_ends(decoded, end_of_word_suffix_);
 }
 
 std::vector<std::string> HFTokenizer::_decode(
@@ -614,11 +583,16 @@ Error HFTokenizer::setup_special_token_ids(
   std::string config_unk_token;
   bool explicit_unk_null = false;
   end_of_word_suffix_.clear();
+  ignore_merges_ = false;
 
   try {
     const auto& model_json = parsed_json.at("model");
     if (model_json.contains("byte_fallback")) {
       byte_fallback_ = model_json.at("byte_fallback").get<bool>();
+    }
+    if (model_json.contains("ignore_merges") &&
+        model_json.at("ignore_merges").is_boolean()) {
+      ignore_merges_ = model_json.at("ignore_merges").get<bool>();
     }
     if (model_json.contains("end_of_word_suffix") &&
         !model_json.at("end_of_word_suffix").is_null()) {
