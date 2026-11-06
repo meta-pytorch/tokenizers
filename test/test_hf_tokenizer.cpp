@@ -616,6 +616,38 @@ TEST(HFTokenizerTest, IgnoreMergesUsesWholeWords) {
   EXPECT_EQ(result.get(), (std::vector<uint64_t>{5}));
 }
 
+// continuing_subword_prefix marks every symbol but the first of a word, and a
+// merge drops the prefix of its second part: a + ##b -> ab.
+TEST(HFTokenizerTest, ContinuingSubwordPrefix) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"##b":1,"ab":2,"##c</w>":3},"merges":["a ##b"],
+    "continuing_subword_prefix":"##","end_of_word_suffix":"</w>"},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto result = tokenizer.encode("abc", 0, 0);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(result.get(), (std::vector<uint64_t>{2, 3}));
+}
+
+// Without byte fallback or an unknown token, a symbol missing from the
+// vocabulary is dropped and the rest of the word is kept.
+TEST(HFTokenizerTest, MissingSymbolsAreDropped) {
+  TempFile with_suffix(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0},"merges":[],"end_of_word_suffix":"</w>"},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  TempFile without_suffix(merge_tokenizer_json(R"({"a":0})", "[]"));
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(with_suffix.path()), Error::Ok);
+  auto a = tokenizer.encode("a", 0, 0);
+  ASSERT_TRUE(a.ok());
+  EXPECT_TRUE(a.get().empty());
+  ASSERT_EQ(tokenizer.load(without_suffix.path()), Error::Ok);
+  auto bab = tokenizer.encode("bab", 0, 0);
+  ASSERT_TRUE(bab.ok());
+  EXPECT_EQ(bab.get(), (std::vector<uint64_t>{0}));
+}
+
 // Decoding is left to the configured decoder: here a Replace decoder turns
 // the suffix into a space, untrimmed.
 TEST(HFTokenizerTest, EndOfWordSuffixDecodesThroughDecoder) {

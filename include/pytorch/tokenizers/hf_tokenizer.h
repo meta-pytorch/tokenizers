@@ -121,9 +121,14 @@ class HFTokenizer : public detail::BPETokenizerBase {
       const detail::TokenMap& ranks,
       std::function<uint64_t(uint64_t, uint64_t)> func) const override;
 
-  // Byte fallback of a symbol, including the suffix of a word-final symbol:
-  // the <0xNN> token of each of its bytes, or nothing when any byte has no
-  // token.
+  // The vocabulary entry of piece[start, stop) within its word: with the
+  // continuing-subword prefix unless it starts the word, and with the
+  // end-of-word suffix if it ends it.
+  std::string word_symbol(const std::string& piece, size_t start, size_t stop)
+      const;
+
+  // Byte fallback of a symbol, including its prefix and suffix: the <0xNN>
+  // token of each of its bytes, or nothing when any byte has no token.
   std::optional<std::vector<uint64_t>> byte_tokens(
       std::string_view symbol) const;
 
@@ -146,6 +151,8 @@ class HFTokenizer : public detail::BPETokenizerBase {
   TokenDecoder::Ptr _decoder;
 
   std::unique_ptr<detail::MergeMap> merge_map_;
+  // Prepended to every symbol but the first of a pre-tokenized word, e.g. "##".
+  std::string continuing_subword_prefix_;
   // Appended to the last symbol of every pre-tokenized word, e.g. "</w>".
   std::string end_of_word_suffix_;
   // Whether a word found whole in the vocabulary skips the merges.
