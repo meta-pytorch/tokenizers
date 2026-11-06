@@ -52,7 +52,24 @@ def test_clip(prompt: str) -> None:
         cpp_tokenizer = CppHFTokenizer()
         cpp_tokenizer.load(tokenizer_path)
 
-        assert tokenizer.encode(prompt) == cpp_tokenizer.encode(prompt, bos=1, eos=1)
+        tokens = tokenizer.encode(prompt)
+        assert tokens == cpp_tokenizer.encode(prompt, bos=1, eos=1)
+        assert tokenizer.decode(
+            tokens, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        ) == cpp_tokenizer.decode_batch(tokens, skip_special_tokens=True)
+
+
+def test_clip_decode_per_token() -> None:
+    with TemporaryDirectory() as temp_dir:
+        tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-large-patch14")
+        tokenizer_path = tokenizer.save_pretrained(temp_dir)[-1]
+
+        cpp_tokenizer = CppHFTokenizer()
+        cpp_tokenizer.load(tokenizer_path)
+
+        tokens = tokenizer.encode("A photo of a CAT", add_special_tokens=False)
+        decoded = "".join(cpp_tokenizer.decode(token) for token in tokens)
+        assert decoded == "a photo of a cat "
 
 
 class TestHfTokenizer(unittest.TestCase):

@@ -517,6 +517,79 @@ TEST(HFTokenizerTest, EndOfWordSuffix) {
   // Matches the HuggingFace tokenizers output for the same tokenizer.json.
   std::vector<uint64_t> expected = {8, 3, 2, 6, 5, 2, 3};
   EXPECT_EQ(result.get(), expected);
+  // Decoding turns each suffix back into a space and trims the text.
+  auto decoded = tokenizer.decode(expected);
+  ASSERT_TRUE(decoded.ok());
+  EXPECT_EQ(decoded.get(), "cat a tat cata");
+  // Decoding one token keeps the space, so streamed words stay separated.
+  auto streamed = tokenizer.decode(expected[0], expected[0]);
+  ASSERT_TRUE(streamed.ok());
+  EXPECT_EQ(streamed.get(), "cat ");
+}
+
+// Loading a tokenizer without a suffix after one with a suffix must drop it.
+TEST(HFTokenizerTest, EndOfWordSuffixDoesNotSurviveReload) {
+  TempFile with_suffix(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"a</w>":1},"merges":[],"end_of_word_suffix":"</w>"},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  TempFile without_suffix(
+      merge_tokenizer_json(R"({"a":0,"aa":1})", R"(["a a"])"));
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(with_suffix.path()), Error::Ok);
+  ASSERT_EQ(tokenizer.load(without_suffix.path()), Error::Ok);
+  auto result = tokenizer.encode("aaa", 0, 0);
+  ASSERT_TRUE(result.ok());
+  std::vector<uint64_t> expected = {1, 0}; // aa, a
+  EXPECT_EQ(result.get(), expected);
+}
+
+// A word-final symbol falls back to the bytes of the symbol and its suffix,
+// all or nothing, as HuggingFace tokenizers does: here "b</w>" has no byte
+// tokens for "</w>", so "b" is dropped.
+TEST(HFTokenizerTest, EndOfWordSuffixWithPartialByteFallback) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"<0x62>":1},"merges":[],"end_of_word_suffix":"</w>",
+    "byte_fallback":true},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto ab = tokenizer.encode("ab", 0, 0);
+  ASSERT_TRUE(ab.ok());
+  EXPECT_EQ(ab.get(), (std::vector<uint64_t>{0}));
+  auto b = tokenizer.encode("b", 0, 0);
+  ASSERT_TRUE(b.ok());
+  EXPECT_TRUE(b.get().empty());
+}
+
+TEST(HFTokenizerTest, EndOfWordSuffixWithByteFallback) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"<0x62>":1,"<0x3C>":2,"<0x2F>":3,"<0x77>":4,"<0x3E>":5},
+    "merges":[],"end_of_word_suffix":"</w>","byte_fallback":true},
+    "normalizer":null,"pre_tokenizer":null,"added_tokens":[]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto ab = tokenizer.encode("ab", 0, 0);
+  ASSERT_TRUE(ab.ok());
+  EXPECT_EQ(ab.get(), (std::vector<uint64_t>{0, 1, 2, 3, 4, 5}));
+  auto b = tokenizer.encode("b", 0, 0);
+  ASSERT_TRUE(b.ok());
+  EXPECT_EQ(b.get(), (std::vector<uint64_t>{1, 2, 3, 4, 5}));
+}
+
+TEST(HFTokenizerTest, EndOfWordSuffixWithUnknownToken) {
+  TempFile tmpfile(R"({"version":"1.0","model":{"type":"BPE",
+    "vocab":{"a":0,"<unk>":1},"merges":[],"end_of_word_suffix":"</w>",
+    "unk_token":"<unk>"},
+    "normalizer":null,"pre_tokenizer":null,
+    "added_tokens":[{"id":1,"content":"<unk>","special":true}]})");
+  HFTokenizer tokenizer;
+  ASSERT_EQ(tokenizer.load(tmpfile.path()), Error::Ok);
+  auto ab = tokenizer.encode("ab", 0, 0);
+  ASSERT_TRUE(ab.ok());
+  EXPECT_EQ(ab.get(), (std::vector<uint64_t>{0, 1}));
+  auto b = tokenizer.encode("b", 0, 0);
+  ASSERT_TRUE(b.ok());
+  EXPECT_EQ(b.get(), (std::vector<uint64_t>{1}));
 }
 
 TEST(HFTokenizerTest, TestByteFallback) {

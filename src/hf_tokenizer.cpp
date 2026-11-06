@@ -127,6 +127,21 @@ std::string extract_token_string(const json& token_json) {
   }
   return "";
 };
+
+// Replaces every end-of-word suffix in text with a space.
+std::string spaced_word_ends(
+    const std::string& text,
+    const std::string& suffix) {
+  std::string spaced;
+  size_t start = 0;
+  for (size_t found = text.find(suffix); found != std::string::npos;
+       found = text.find(suffix, start)) {
+    spaced.append(text, start, found - start).push_back(' ');
+    start = found + suffix.size();
+  }
+  spaced.append(text, start, std::string::npos);
+  return spaced;
+}
 } // namespace
 
 // -------------------------public method start-------------------------------
@@ -241,6 +256,17 @@ Result<std::string> HFTokenizer::decode(
     result_str += p;
   }
 
+  if (!end_of_word_suffix_.empty()) {
+    // Word ends become spaces, and the text is trimmed.
+    const std::string spaced =
+        spaced_word_ends(result_str, end_of_word_suffix_);
+    const auto first = spaced.find_first_not_of(" \t\n\v\f\r");
+    const auto last = spaced.find_last_not_of(" \t\n\v\f\r");
+    result_str = first == std::string::npos
+        ? std::string()
+        : spaced.substr(first, last - first + 1);
+  }
+
   return result_str;
 }
 
@@ -283,14 +309,18 @@ Error HFTokenizer::_encode(
 }
 
 void HFTokenizer::_decode(const std::string& input, std::string& ret) const {
+  std::string decoded;
   if (_decoder) {
-    auto result = _decoder->decode({input});
-    for (auto& piece : result) {
-      ret += piece;
+    for (auto& piece : _decoder->decode({input})) {
+      decoded += piece;
     }
   } else {
-    ret += input;
+    decoded = input;
   }
+  // Untrimmed, so the words of successively decoded tokens stay separated.
+  ret += end_of_word_suffix_.empty()
+      ? decoded
+      : spaced_word_ends(decoded, end_of_word_suffix_);
 }
 
 std::vector<std::string> HFTokenizer::_decode(
@@ -312,17 +342,13 @@ Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
       return std::vector<uint64_t>(1, *result);
     }
     if (byte_fallback_) {
-      char hex[7];
-      snprintf(
-          hex, sizeof(hex), "<0x%02X>", static_cast<unsigned char>(piece[0]));
-      const auto byte_result = token_map.tryGetInteger(std::string(hex));
-      if (byte_result) {
-        return std::vector<uint64_t>(1, *byte_result);
+      if (auto tokens = byte_tokens(piece + end_of_word_suffix_)) {
+        return std::move(*tokens);
       }
       if (unk_token_is_configured_) {
         return std::vector<uint64_t>(1, unk_tok_);
       }
-      return Error::EncodeFailure;
+      return std::vector<uint64_t>();
     } else {
       if (unk_token_is_configured_) {
         return std::vector<uint64_t>(1, unk_tok_);
@@ -355,6 +381,21 @@ Result<std::vector<uint64_t>> HFTokenizer::byte_pair_encode_(
       });
 }
 
+std::optional<std::vector<uint64_t>> HFTokenizer::byte_tokens(
+    std::string_view symbol) const {
+  std::vector<uint64_t> tokens;
+  for (unsigned char byte : symbol) {
+    char hex[7];
+    snprintf(hex, sizeof(hex), "<0x%02X>", byte);
+    const auto token = token_map_->tryGetInteger(std::string(hex));
+    if (!token) {
+      return std::nullopt;
+    }
+    tokens.push_back(*token);
+  }
+  return tokens;
+}
+
 std::vector<uint64_t> HFTokenizer::_byte_pair_merge(
     const std::string& piece,
     const detail::TokenMap& /*ranks*/,
@@ -380,21 +421,16 @@ std::vector<uint64_t> HFTokenizer::_byte_pair_merge(
 
     uint64_t token_id = func(char_start, char_start + char_len);
     if (token_id == UINT64_MAX) { // This is the sentinel for byte_fallback
-      for (size_t j = 0; j < char_len; ++j) {
-        char hex[7];
-        snprintf(
-            hex,
-            sizeof(hex),
-            "<0x%02X>",
-            static_cast<unsigned char>(piece[char_start + j]));
-        const auto byte_result = token_map_->tryGetInteger(std::string(hex));
-        if (byte_result) {
-          word.add(*byte_result, 1);
-        } else if (unk_token_is_configured_) {
-          word.add(unk_tok_, 1);
-        } else {
-          return {}; // Unhandled byte fallback
+      std::string symbol = piece.substr(char_start, char_len);
+      if (char_start + char_len == piece.size()) {
+        symbol += end_of_word_suffix_;
+      }
+      if (const auto tokens = byte_tokens(symbol)) {
+        for (uint64_t token : *tokens) {
+          word.add(token, 1);
         }
+      } else if (unk_token_is_configured_) {
+        word.add(unk_tok_, char_len);
       }
     } else if (token_id == (UINT64_MAX - 1)) { // This is the sentinel for a
                                                // generic err
@@ -577,6 +613,7 @@ Error HFTokenizer::setup_special_token_ids(
   std::string config_eos_token;
   std::string config_unk_token;
   bool explicit_unk_null = false;
+  end_of_word_suffix_.clear();
 
   try {
     const auto& model_json = parsed_json.at("model");

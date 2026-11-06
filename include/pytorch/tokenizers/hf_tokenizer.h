@@ -14,7 +14,9 @@
 
 // Standard
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // Local
@@ -118,6 +120,12 @@ class HFTokenizer : public detail::BPETokenizerBase {
       const std::string& piece,
       const detail::TokenMap& ranks,
       std::function<uint64_t(uint64_t, uint64_t)> func) const override;
+
+  // Byte fallback of a symbol, including the suffix of a word-final symbol:
+  // the <0xNN> token of each of its bytes, or nothing when any byte has no
+  // token.
+  std::optional<std::vector<uint64_t>> byte_tokens(
+      std::string_view symbol) const;
 
   Error parse_special_tokens(const nlohmann::json& parsed_json);
   Error parse_tokens(const nlohmann::json& parsed_json);
