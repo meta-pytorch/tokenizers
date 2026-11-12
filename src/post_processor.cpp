@@ -152,6 +152,8 @@ PostProcessor::Ptr PostProcessorConfig::create() const {
       ptrs.push_back(cfg.create());
     }
     return std::make_shared<Sequence>(std::move(ptrs));
+  } else if (type == "RobertaProcessing") {
+    return std::make_shared<RobertaProcessing>(cls.second, sep.second);
   } else if (type == "ByteLevel") {
     // Return no-op sequence
     return std::make_shared<Sequence>(std::vector<PostProcessor::Ptr>{});
@@ -179,6 +181,9 @@ PostProcessorConfig& PostProcessorConfig::parse_json(const json& j) {
         processors.push_back(PostProcessorConfig().parse_json(item));
       }
     }
+  } else if (type == "RobertaProcessing") {
+    sep = j.value("sep", std::pair<std::string, uint64_t>{"</s>", 2});
+    cls = j.value("cls", std::pair<std::string, uint64_t>{"<s>", 0});
   }
 
   return *this;
@@ -251,6 +256,44 @@ std::vector<uint64_t> TemplateProcessing::process(
     const std::vector<uint64_t>& tokens_b,
     bool add_special_tokens) const {
   return apply_template(pair_, tokens_a, &tokens_b, add_special_tokens);
+}
+
+// RobertaProcessing ///////////////////////////////////////////////////////////
+
+RobertaProcessing::RobertaProcessing(uint64_t cls_id, uint64_t sep_id)
+    : cls_id_(cls_id), sep_id_(sep_id) {}
+
+size_t RobertaProcessing::added_tokens(bool is_pair) const {
+  return is_pair ? 4 : 2;
+}
+
+std::vector<uint64_t> RobertaProcessing::process(
+    const std::vector<uint64_t>& tokens,
+    bool add_special_tokens) const {
+  if (!add_special_tokens) {
+    return tokens;
+  }
+  std::vector<uint64_t> result;
+  result.reserve(tokens.size() + 2);
+  result.push_back(cls_id_);
+  result.insert(result.end(), tokens.begin(), tokens.end());
+  result.push_back(sep_id_);
+  return result;
+}
+
+std::vector<uint64_t> RobertaProcessing::process(
+    const std::vector<uint64_t>& tokens_a,
+    const std::vector<uint64_t>& tokens_b,
+    bool add_special_tokens) const {
+  std::vector<uint64_t> result = process(tokens_a, add_special_tokens);
+  if (add_special_tokens) {
+    result.push_back(sep_id_);
+  }
+  result.insert(result.end(), tokens_b.begin(), tokens_b.end());
+  if (add_special_tokens) {
+    result.push_back(sep_id_);
+  }
+  return result;
 }
 
 // Sequence ////////////////////////////////////////////////////////////////////

@@ -33,6 +33,28 @@ def test_models(model_id: str) -> None:
         assert tokens == cpp_tokens
 
 
+CLIP_PROMPTS = [
+    "A photo of a CAT",
+    "Ünïcode Straße İstanbul ΣΑΣ",
+    "it's a 1024x768 image!!!",
+    "  lots   of\twhitespace  ",
+    "a cat <|endoftext|> a dog",
+    "a " * 100,
+]
+
+
+@pytest.mark.parametrize("prompt", CLIP_PROMPTS)
+def test_clip(prompt: str) -> None:
+    with TemporaryDirectory() as temp_dir:
+        tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-large-patch14")
+        tokenizer_path = tokenizer.save_pretrained(temp_dir)[-1]
+
+        cpp_tokenizer = CppHFTokenizer()
+        cpp_tokenizer.load(tokenizer_path)
+
+        assert tokenizer.encode(prompt) == cpp_tokenizer.encode(prompt, bos=1, eos=1)
+
+
 class TestHfTokenizer(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = TemporaryDirectory()

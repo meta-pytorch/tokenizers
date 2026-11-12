@@ -211,4 +211,19 @@ class NFCNormalizer : public Normalizer {
 
 }; // end class NFCNormalizer
 
+// -- Lowercase ----------------------------------------------------------------
+// Used for Unicode lowercasing
+// CITE:
+// https://github.com/huggingface/tokenizers/blob/main/tokenizers/src/normalizers/utils.rs
+
+class LowercaseNormalizer : public Normalizer {
+ public:
+  /** Default constructor */
+  explicit LowercaseNormalizer() = default;
+
+  /** Lowercase every codepoint */
+  std::string normalize(const std::string& input) const override;
+
+}; // end class LowercaseNormalizer
+
 } // namespace tokenizers
