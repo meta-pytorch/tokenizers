@@ -38,6 +38,7 @@ CLIP_PROMPTS = [
     "Ünïcode Straße İstanbul ΣΑΣ",
     "it's a 1024x768 image!!!",
     "  lots   of\twhitespace  ",
+    "no-break\u00a0and ideographic\u3000spaces",
     "a cat <|endoftext|> a dog",
     "a " * 100,
 ]
