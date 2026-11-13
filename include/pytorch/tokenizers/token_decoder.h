@@ -159,7 +159,7 @@ class StripTokenDecoder : public TokenDecoder {
       const std::vector<std::string>& tokens) const override;
 
  private:
-  uint32_t content_;
+  std::string content_;
   size_t start_;
   size_t stop_;
 }; // end class StripTokenDecoder
