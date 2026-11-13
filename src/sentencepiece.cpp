@@ -111,17 +111,21 @@ Result<std::string> SPTokenizer::decode(
     return std::string(" ");
   }
 
-  std::string result =
-      absl::StrReplaceAll(_processor->IdToPiece(token), {{kSpaceSymbol, " "}});
+  const std::string& piece = _processor->IdToPiece(token);
+  // byte-fallback pieces look like e.g. '<0xF0>' and stand for that raw byte
+  unsigned char byte_val;
+  if (_processor->IsByte(token) &&
+      sscanf(piece.c_str(), "<0x%02hhX>", &byte_val) == 1) {
+    return std::string(1, static_cast<char>(byte_val));
+  }
+
+  std::string result = absl::StrReplaceAll(piece, {{kSpaceSymbol, " "}});
 
   // following BOS token, sentencepiece decoder strips any leading
   // whitespace
   if (prev_token == bos_tok_ && result[0] == ' ') {
     result = result.substr(1);
   }
-
-  // handle <0x0A>
-  result = absl::StrReplaceAll(result, {{"<0x0A>", "\n"}});
 
   return result;
 }

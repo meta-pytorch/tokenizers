@@ -114,6 +114,24 @@ TEST(SPTokenizerTest, TestDecode) {
   }
 }
 
+TEST(SPTokenizerTest, TestDecodeByteFallback) {
+  SPTokenizer tokenizer;
+  auto path = _get_resource_path("test_sentencepiece.model");
+  auto error = tokenizer.load(path);
+  EXPECT_EQ(error, Error::Ok);
+  // "😀" is not in the vocab, so it is encoded as its UTF-8 bytes <0xF0>,
+  // <0x9F>, <0x98>, <0x80>.
+  auto tokens = tokenizer.encode("😀\n", /*bos*/ 1, /*eos*/ 0);
+  EXPECT_TRUE(tokens.ok());
+  std::string text;
+  for (size_t i = 1; i < tokens.get().size(); ++i) {
+    auto result = tokenizer.decode(tokens.get()[i - 1], tokens.get()[i]);
+    EXPECT_TRUE(result.ok());
+    text += result.get();
+  }
+  EXPECT_EQ(text, "😀\n");
+}
+
 TEST(SPTokenizerTest, TestDecodeSpecialTokens) {
   SPTokenizer tokenizer;
   auto path = _get_resource_path("test_sentencepiece.model");
