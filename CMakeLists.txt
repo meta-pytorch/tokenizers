@@ -19,6 +19,7 @@ project(Tokenizers)
 option(TOKENIZERS_BUILD_TEST "Build tests" OFF)
 option(TOKENIZERS_BUILD_TOOLS "Build tools" OFF)
 option(TOKENIZERS_BUILD_PYTHON "Build Python bindings" OFF)
+option(TOKENIZERS_BUILD_CHAT_TEMPLATE "Build HF Jinja chat template rendering" OFF)
 option(SUPPORT_REGEX_LOOKAHEAD
        "Support regex lookahead patterns (requires PCRE2)" OFF
 )
@@ -158,6 +159,9 @@ endif()
 # Build tools
 if(TOKENIZERS_BUILD_TOOLS)
   add_subdirectory(examples/tokenize_tool)
+  if(TOKENIZERS_BUILD_CHAT_TEMPLATE)
+    add_subdirectory(examples/chat_template_tool)
+  endif()
 endif()
 
 # Build Python bindings
@@ -192,6 +196,27 @@ endif()
 
 # Installation rules
 include(GNUInstallDirs)
+
+if(TOKENIZERS_BUILD_CHAT_TEMPLATE)
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third-party/minja/include/minja/minja.hpp")
+    message(FATAL_ERROR "Initialise third-party/minja with git submodule update --init")
+  endif()
+  add_library(tokenizers_chat_template STATIC src/chat_template.cpp)
+  add_library(tokenizers::chat_template ALIAS tokenizers_chat_template)
+  set_target_properties(tokenizers_chat_template PROPERTIES
+    EXPORT_NAME chat_template POSITION_INDEPENDENT_CODE ON
+  )
+  target_compile_features(tokenizers_chat_template PUBLIC cxx_std_17)
+  target_include_directories(tokenizers_chat_template
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third-party/json/single_include>
+           $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third-party/minja/include
+  )
+  install(TARGETS tokenizers_chat_template EXPORT tokenizers-targets
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+endif()
 
 if(NOT TOKENIZERS_BUILD_PYTHON)
   # Install the library and its dependencies

@@ -31,7 +31,7 @@ jobs:
       timeout: 90
       script: |
         set -ex
-        cmake -DCMAKE_BUILD_TYPE=Debug test -Bbuild/test
+        cmake -DCMAKE_BUILD_TYPE=Debug -DTOKENIZERS_BUILD_CHAT_TEMPLATE=ON test -Bbuild/test
         cmake --build build/test -j9 --config Debug
         pushd build/test && ctest && popd
 

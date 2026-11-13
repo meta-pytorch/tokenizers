@@ -18,6 +18,11 @@ Adapted from https://github.com/sewenew/tokenizer.
 ## Huggingface tokenizer
 Compatible with https://github.com/huggingface/tokenizers/.
 
+Optional C++ chat template rendering is available with
+`TOKENIZERS_BUILD_CHAT_TEMPLATE=ON`. See the
+[chat template example](examples/chat_template_tool/README.md) for loading HF
+templates and rendering prompts separately from tokenization and generation.
+
 ## Llama2.c tokenizer
 Adapted from https://github.com/karpathy/llama2.c.
 

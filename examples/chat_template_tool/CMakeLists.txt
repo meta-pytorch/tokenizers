@@ -1,0 +1,2 @@
+add_executable(chat_template_tool main.cpp)
+target_link_libraries(chat_template_tool PRIVATE tokenizers::chat_template)
