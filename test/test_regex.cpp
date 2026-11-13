@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include "pytorch/tokenizers/pcre2_regex.h"
+#include "pytorch/tokenizers/re2_regex.h"
 #include "pytorch/tokenizers/regex.h"
 
 using namespace tokenizers;
@@ -182,4 +183,51 @@ TEST_F(RegexTest, Pcre2InvalidUtf8AfterValidMatches) {
   Pcre2Regex regex;
   ASSERT_EQ(regex.compile("\\p{L}+| "), Error::Ok);
   EXPECT_TRUE(regex.find_all("Hello w\xC3\xB6rld \xE4\xBD").empty());
+}
+
+// RE2 compiles \s as ASCII whitespace only, but the HuggingFace tokenizers
+// library treats every Unicode White_Space code point as \s. CLIP's normalizer
+// (`\s+` -> " ") and pre-tokenizer (`[^\s\p{L}\p{N}]+`) both go through RE2.
+TEST_F(RegexTest, Re2UnicodeWhitespace) {
+  // U+00A0 NO-BREAK SPACE, U+3000 IDEOGRAPHIC SPACE, U+200B ZERO WIDTH SPACE.
+  const std::string nbsp = "\xC2\xA0";
+  const std::string ideographic = "\xE3\x80\x80";
+  const std::string zwsp = "\xE2\x80\x8B";
+
+  auto space = TK_UNWRAP_THROW(create_regex("\\s+"));
+  EXPECT_NE(dynamic_cast<Re2Regex*>(space.get()), nullptr);
+  // " ", "\t", U+000B, U+0085, U+00A0, U+2028 and U+3000.
+  const std::string spaces =
+      " \t\v\xC2\x85" + nbsp + "\xE2\x80\xA8" + ideographic;
+  auto matches = space->find_all("a" + spaces + "b");
+  ASSERT_EQ(matches.size(), 1);
+  EXPECT_EQ(matches[0].start, 1);
+  EXPECT_EQ(matches[0].end, 1 + spaces.size());
+  // U+200B is not White_Space.
+  EXPECT_TRUE(space->find_all("a" + zwsp + "b").empty());
+
+  auto not_space = TK_UNWRAP_THROW(create_regex("\\S+"));
+  EXPECT_NE(dynamic_cast<Re2Regex*>(not_space.get()), nullptr);
+  EXPECT_EQ(not_space->find_all("a" + nbsp + "b").size(), 2);
+
+  // Inside a class, as in CLIP's pre-tokenizer.
+  auto symbols = TK_UNWRAP_THROW(create_regex("[^\\s\\p{L}]+"));
+  EXPECT_NE(dynamic_cast<Re2Regex*>(symbols.get()), nullptr);
+  matches = symbols->find_all("a" + nbsp + "!" + ideographic + "b");
+  ASSERT_EQ(matches.size(), 1);
+  EXPECT_EQ(matches[0].start, 1 + nbsp.size());
+  EXPECT_EQ(matches[0].end, 2 + nbsp.size());
+
+  // A POSIX class inside the class does not end it early.
+  auto posix = TK_UNWRAP_THROW(create_regex("[[:digit:]\\s]+"));
+  EXPECT_NE(dynamic_cast<Re2Regex*>(posix.get()), nullptr);
+  EXPECT_EQ(posix->find_all("1" + nbsp + "2").size(), 1);
+
+  // An escaped backslash followed by "s" is still a literal backslash and "s".
+  auto literal = TK_UNWRAP_THROW(create_regex("\\\\s"));
+  EXPECT_NE(dynamic_cast<Re2Regex*>(literal.get()), nullptr);
+  matches = literal->find_all("\\s s");
+  ASSERT_EQ(matches.size(), 1);
+  EXPECT_EQ(matches[0].start, 0);
+  EXPECT_EQ(matches[0].end, 2);
 }
