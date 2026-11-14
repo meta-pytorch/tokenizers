@@ -19,7 +19,7 @@
 namespace tokenizers {
 
 // Alias error code integral type to minimal platform width (32-bits for now).
-typedef uint32_t error_code_t;
+using error_code_t = uint32_t;
 
 /**
  * ExecuTorch Error type.

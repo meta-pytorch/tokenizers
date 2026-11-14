@@ -33,7 +33,7 @@ namespace tokenizers {
 class PreTokenizer {
  public:
   /** Shared pointer type */
-  typedef std::shared_ptr<PreTokenizer> Ptr;
+  using Ptr = std::shared_ptr<PreTokenizer>;
 
   /** Split the input string piece into sub-pieces
    *
