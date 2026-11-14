@@ -34,7 +34,7 @@ template <typename T>
 class Result final {
  public:
   /// `value_type` member for generic programming.
-  typedef T value_type;
+  using value_type = T;
 
   /**
    * Creates a Result object from an Error.

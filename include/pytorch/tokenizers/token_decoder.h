@@ -32,7 +32,7 @@ class TokenDecoder {
   /* -- Types -- */
 
   /** Shared pointer type */
-  typedef std::shared_ptr<TokenDecoder> Ptr;
+  using Ptr = std::shared_ptr<TokenDecoder>;
 
   /* -- Virtual Methods -- */
 

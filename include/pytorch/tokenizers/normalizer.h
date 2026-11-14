@@ -33,7 +33,7 @@ namespace tokenizers {
 class Normalizer {
  public:
   /** Shared pointer type */
-  typedef std::shared_ptr<Normalizer> Ptr;
+  using Ptr = std::shared_ptr<Normalizer>;
 
   /** Normalize the input string
    *
