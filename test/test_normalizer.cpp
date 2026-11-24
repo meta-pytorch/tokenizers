@@ -83,8 +83,8 @@ TEST(NormalizerTest, PrependNormalizerBasic) {
 TEST(NormalizerTest, PrependNormalizerEmptyInput) {
   // Test prepend with empty input (should return empty)
   PrependNormalizer normalizer("_");
-  std::string input = "";
-  std::string expected = "";
+  std::string input;
+  std::string expected;
   std::string result = normalizer.normalize(input);
   EXPECT_EQ(result, expected);
 }
@@ -184,8 +184,8 @@ TEST(NormalizerTest, EmptySequenceNormalizerFromConfig) {
 TEST(NormalizerTest, EmptyInput) {
   // Test with empty input
   ReplaceNormalizer normalizer(" ", "▁");
-  std::string input = "";
-  std::string expected = "";
+  std::string input;
+  std::string expected;
   std::string result = normalizer.normalize(input);
   EXPECT_EQ(result, expected);
 }
