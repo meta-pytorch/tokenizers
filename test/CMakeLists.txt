@@ -39,6 +39,12 @@ foreach(test_source_file ${test_source_files})
   get_filename_component(test_name ${test_source_file} NAME_WE)
   message(STATUS "Configuring unit test ${test_name}")
   add_executable(${test_name} ${test_source_file})
+  if(test_name STREQUAL "test_rust_hf_tokenizer")
+    target_sources(
+      ${test_name}
+      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src/rust_hf_tokenizer.cpp
+    )
+  endif()
   target_include_directories(
     ${test_name} PRIVATE GTEST_INCLUDE_PATH ${TOKENIZERS_INCLUDE_DIRS}
   )
