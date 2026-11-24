@@ -302,4 +302,7 @@ TEST(NormalizerTest, NormalizerConfigLowercase) {
             {{"type", "Lowercase"}}}}});
   auto normalizer = config.create();
   EXPECT_EQ(normalizer->normalize("A  Photo\tOF a CAT"), "a photo of a cat");
+  EXPECT_EQ(
+      normalizer->normalize("A\u00a0\u2009Photo\vOF\u0085a\u202fCAT"),
+      "a photo of a cat");
 }

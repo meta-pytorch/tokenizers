@@ -112,7 +112,9 @@ NormalizerConfig& NormalizerConfig::parse_json(const json& json_config) {
 std::unique_ptr<IRegex> ReplaceNormalizer::create_regex_(
     const std::string& pattern) {
   assert(!pattern.empty());
-  auto regex_result = create_regex(pattern);
+  // RE2's \s is ASCII-only.
+  auto regex_result = create_regex(
+      pattern == R"(\s+)" ? R"([\p{Z}\x{09}-\x{0D}\x{85}]+)" : pattern);
   if (!regex_result.ok()) {
     std::string error =
         "Error: " + std::to_string(static_cast<int>(regex_result.error()));
