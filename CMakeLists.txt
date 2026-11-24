@@ -19,6 +19,19 @@ project(Tokenizers)
 option(TOKENIZERS_BUILD_TEST "Build tests" OFF)
 option(TOKENIZERS_BUILD_TOOLS "Build tools" OFF)
 option(TOKENIZERS_BUILD_PYTHON "Build Python bindings" OFF)
+option(TOKENIZERS_BUILD_HF_RUST_TOKENIZER
+       "Build the opt-in Hugging Face Rust tokenizer backend" OFF
+)
+set(TOKENIZERS_HF_RUST_FORMATS
+    "json"
+    CACHE STRING "Rust tokenizer formats: json, tok, or json,tok"
+)
+set_property(
+  CACHE TOKENIZERS_HF_RUST_FORMATS PROPERTY STRINGS json tok "json,tok"
+)
+option(TOKENIZERS_OPTIMIZE_SIZE "Optimize optional tokenizer backends for size"
+       OFF
+)
 option(SUPPORT_REGEX_LOOKAHEAD
        "Support regex lookahead patterns (requires PCRE2)" OFF
 )
@@ -192,6 +205,10 @@ endif()
 
 # Installation rules
 include(GNUInstallDirs)
+
+if(TOKENIZERS_BUILD_HF_RUST_TOKENIZER)
+  add_subdirectory(rust_tokenizer)
+endif()
 
 if(NOT TOKENIZERS_BUILD_PYTHON)
   # Install the library and its dependencies
