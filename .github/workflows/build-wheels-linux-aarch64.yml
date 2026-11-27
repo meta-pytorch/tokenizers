@@ -21,15 +21,17 @@ on:
 jobs:
   generate-matrix:
     name: Generate Linux AArch64 matrix
-    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@release/2.12
+    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@release/2.15
     with:
       package-type: wheel
       os: linux-aarch64
       test-infra-repository: pytorch/test-infra
-      test-infra-ref: release/2.12
+      test-infra-ref: release/2.15
       with-cuda: disabled
       with-rocm: disabled
-      python-versions: '["3.10", "3.11", "3.12", "3.13"]'
+      runner-fleet: osdc
+      # torch 2.15 has no Python 3.10 wheels.
+      python-versions: '["3.11", "3.12", "3.13"]'
 
   build:
     name: Build Linux AArch64 wheels
@@ -37,14 +39,16 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    uses: pytorch/test-infra/.github/workflows/build_wheels_linux.yml@release/2.12
+    uses: pytorch/test-infra/.github/workflows/build_wheels_linux.yml@release/2.15
     with:
       repository: meta-pytorch/tokenizers
       ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
       test-infra-repository: pytorch/test-infra
-      test-infra-ref: release/2.12
+      test-infra-ref: release/2.15
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       trigger-event: ${{ github.event_name }}
+      # Build against the PyTorch 2.15 release instead of nightly, which PRs into main get by default.
+      pip-install-torch-extra-args: --extra-index-url https://download.pytorch.org/whl/cpu torch==2.15.0
       package-name: pytorch_tokenizers
       pre-script: .ci/scripts/wheel/pre_build_script.sh
       smoke-test-script: .ci/scripts/wheel/test_wheel.py
